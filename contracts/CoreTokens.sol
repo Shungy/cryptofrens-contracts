@@ -27,10 +27,6 @@ contract CoreTokens is Ownable {
             tokenAddress != stakingToken,
             "Recoverer: staking token is not recoverable"
         );
-        require(
-            tokenAddress != address(rewardToken),
-            "Recoverer: reward token is recoverable"
-        );
         IERC20(tokenAddress).safeTransfer(msg.sender, tokenAmount);
         emit RecoveredERC20(tokenAddress, tokenAmount);
     }
@@ -42,10 +38,6 @@ contract CoreTokens is Ownable {
         require(
             tokenAddress != stakingToken,
             "Recoverer: staking token is not recoverable"
-        );
-        require(
-            tokenAddress != address(rewardToken),
-            "Recoverer: reward token is recoverable"
         );
         IERC721(tokenAddress).transferFrom(address(this), msg.sender, tokenId);
         emit RecoveredERC721(tokenAddress, tokenId);
