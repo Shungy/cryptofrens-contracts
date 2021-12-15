@@ -13,8 +13,16 @@ contract ERC721StakingRewards is Pausable, StakingRewards {
     constructor(
         address _stakingToken,
         address _rewardToken,
-        uint256 _rewardMultiplier
-    ) StakingRewards(_stakingToken, _rewardToken, _rewardMultiplier) {}
+        uint256 _rewardMultiplier,
+        uint256 _stakingTokenDecimals
+    )
+        StakingRewards(
+            _stakingToken,
+            _rewardToken,
+            _rewardMultiplier,
+            _stakingTokenDecimals
+        )
+    {}
 
     function tokensOf(address account) public view returns (uint256[] memory) {
         uint256[] memory tokens;
@@ -39,7 +47,11 @@ contract ERC721StakingRewards is Pausable, StakingRewards {
             _tokensOf[msg.sender][balance] = tokenId;
             _tokensIndex[tokens[i]] = balance;
             _users[msg.sender].balance++;
-            IERC721(stakingToken).transferFrom(msg.sender, address(this), tokens[i]);
+            IERC721(stakingToken).transferFrom(
+                msg.sender,
+                address(this),
+                tokens[i]
+            );
         }
         _totalSupply = _totalSupply.add(tokens.length);
         emit Staked(msg.sender, tokens);
@@ -48,7 +60,7 @@ contract ERC721StakingRewards is Pausable, StakingRewards {
     function withdraw(uint256[] memory tokens)
         public
         nonReentrant
-        updatePeriodEndTime
+        updateSessionEndTime
         updateStakingDuration(msg.sender)
         updateReward(msg.sender)
     {
@@ -71,7 +83,11 @@ contract ERC721StakingRewards is Pausable, StakingRewards {
             delete _tokensIndex[tokenId];
             delete _tokensOf[msg.sender][lastTokenIndex];
             _users[msg.sender].balance--;
-            IERC721(stakingToken).transferFrom(address(this), msg.sender, tokens[i]);
+            IERC721(stakingToken).transferFrom(
+                address(this),
+                msg.sender,
+                tokens[i]
+            );
         }
         _totalSupply = _totalSupply.sub(tokens.length);
         emit Withdrawn(msg.sender, tokens);

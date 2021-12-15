@@ -11,8 +11,16 @@ contract ERC20StakingRewards is Pausable, StakingRewards {
     constructor(
         address _stakingToken,
         address _rewardToken,
-        uint256 _rewardMultiplier
-    ) StakingRewards(_stakingToken, _rewardToken, _rewardMultiplier) {}
+        uint256 _rewardMultiplier,
+        uint256 _stakingTokenDecimals
+    )
+        StakingRewards(
+            _stakingToken,
+            _rewardToken,
+            _rewardMultiplier,
+            _stakingTokenDecimals
+        )
+    {}
 
     function stake(uint256 amount)
         external
@@ -25,14 +33,18 @@ contract ERC20StakingRewards is Pausable, StakingRewards {
         require(amount > 0, "ERC20StakingRewards: cannot stake 0");
         _totalSupply = _totalSupply.add(amount);
         _users[msg.sender].balance = _users[msg.sender].balance.add(amount);
-        IERC20(stakingToken).safeTransferFrom(msg.sender, address(this), amount);
+        IERC20(stakingToken).safeTransferFrom(
+            msg.sender,
+            address(this),
+            amount
+        );
         emit Staked(msg.sender, amount);
     }
 
     function withdraw(uint256 amount)
         public
         nonReentrant
-        updatePeriodEndTime
+        updateSessionEndTime
         updateStakingDuration(msg.sender)
         updateReward(msg.sender)
     {

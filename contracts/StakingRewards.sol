@@ -14,12 +14,20 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
 
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
-    // max supply of the reward token as queried from its contract
-    uint256 public rewardTokenMaxSupply;
-    // how long the average token is left staking without any interaction (withdraw, harvest, stake)
     uint256 public averageStakingDuration;
-    // ratio of max supply this contract should mint at most (i.e. 10%)
     uint256 public rewardAllocationMultiplier;
+
+    uint256 internal _totalSupply;
+
+    uint256 private _rewardTokenMaxSupply;
+    uint256 private _stakingTokenDecimals;
+    uint256 private _stakelessDuration;
+    uint256 private _sessionStartTime;
+    uint256 private _sessionEndTime;
+    uint256 private _sumOfEntryTimes;
+
+    uint256 private constant REWARD_ALLOCATION_DIVISOR = 100;
+    uint256 private constant PSEUDO_REWARD_DURATION = 200 days;
 
     struct User {
         uint256 lastUpdateTime;
@@ -29,19 +37,6 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         uint256 balance;
     }
 
-    uint256 internal _totalSupply;
-
-    // total stakeless duration since 0
-    uint256 private _stakelessDuration;
-    // timestamp of a withdraw that turns stake amount to 0 (used for calculating _stakelessDuration)
-    uint256 private _periodEndTime;
-    // time when stake pool becomes active (i.e. last time stake amount stops being zero)
-    uint256 private _periodStartTime;
-    uint256 private _sumOfEntryTimes;
-    uint256 private constant REWARD_ALLOCATION_DIVISOR = 10;
-    // time it will take to distribute majority—not all—of the tokens
-    uint256 private constant PSEUDO_REWARD_DURATION = 200 days;
-
     mapping(address => User) internal _users;
 
     /* ========== CONSTRUCTOR ========== */
@@ -49,10 +44,12 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
     constructor(
         address _stakingToken,
         address _rewardToken,
-        uint256 _rewardMultiplier
+        uint256 _rewardMultiplier,
+        uint256 _stakingDecimals
     ) CoreTokens(_stakingToken, _rewardToken) {
-        rewardTokenMaxSupply = rewardToken.maxSupply();
+        _rewardTokenMaxSupply = rewardToken.maxSupply();
         rewardAllocationMultiplier = _rewardMultiplier;
+        _stakingTokenDecimals = _stakingDecimals;
     }
 
     /* ========== VIEWS ========== */
@@ -71,9 +68,21 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         }
         return
             rewardPerTokenStored.add(
+                /*
+                 * Calculation  below  gives  the   amount  of  reward  tokens
+                 * ‘owed’ per one staking token since rewardPerTokenStored
+                 * was last updated. Adding this value to rewardPerTokenStored
+                 * gives the new rewardPerTokenStored at block.timestamp.
+                 *
+                 *
+                 * DurationSinceUpdate * MintableSupply * MinterAllocation
+                 * -------------------------------------------------------
+                 *    ( 200 days + EmissionsDuration ) * StakedSupply
+                 */
                 block.timestamp
-                    .sub(lastUpdateTime)
-                    .mul(rewardTokenMaxSupply.add(rewardToken.burnedSupply()))
+                .sub(lastUpdateTime)
+                .mul(_rewardTokenMaxSupply.add(rewardToken.burnedSupply()))
+                .mul(10**_stakingTokenDecimals)
                     .mul(rewardAllocationMultiplier)
                     .div(REWARD_ALLOCATION_DIVISOR)
                     .div(
@@ -87,29 +96,31 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
 
     function earned(address account) public view returns (uint256) {
         return
+            /*
+             * (UserBalance*UserRewardPerToken*UserAprModifier)+StoredRewards
+             */
             _users[account].balance
-                .mul(rewardPerToken().sub(_users[account].rewardPerTokenPaid))
-                .mul(userStakingDuration(account))
-                .div(averageStakingDuration)
-                .add(_users[account].reward);
+            .mul(rewardPerToken().sub(_users[account].rewardPerTokenPaid))
+            .mul(userStakingDuration(account))
+            .div(averageStakingDuration)
+            .div(10**_stakingTokenDecimals).add(_users[account].reward);
     }
 
     function stakingDuration() public view returns (uint256) {
-        require(_periodStartTime > 0, "StakingRewards: there is no stake"); // when this doesn't hold true
-        uint256 totalPeriod = block.timestamp - _periodStartTime; // can this ever be negative
-        if (totalPeriod == 0) {
-            return 0; // when this happens
+        if (_totalSupply == 0) {
+            return 0;
         }
-        uint256 currentPeriod = block.timestamp - lastUpdateTime; // can this ever be negative?
+        uint256 sessionDuration = block.timestamp - _sessionStartTime;
+        uint256 periodDuration = block.timestamp - lastUpdateTime;
         return
             averageStakingDuration
-                .mul(totalPeriod.sub(currentPeriod))
+                .mul(sessionDuration.sub(periodDuration))
                 .add(
                     block.timestamp.mul(_totalSupply).sub(_sumOfEntryTimes).mul(
-                        currentPeriod
+                        periodDuration
                     )
                 )
-                .div(totalPeriod);
+                .div(sessionDuration);
     }
 
     function userStakingDuration(address account)
@@ -120,23 +131,21 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         // get average staking duration during the user's staking period
         // by calculating the change between current staking duration vs
         // cached staking duration
-        require(_periodStartTime > 0, "StakingRewards: there is no stake"); // when this doesn't hold true?
-        uint256 totalPeriod = block.timestamp - _periodStartTime; //can this ever be negative?
-        uint256 currentPeriod = (
-            // is this check necessary
-            _users[account].lastUpdateTime < _periodStartTime
-                ? totalPeriod
-                : block.timestamp - _users[account].lastUpdateTime
-        );
+        if (_users[account].balance == 0) {
+            return 0;
+        }
+        uint256 sessionDuration = block.timestamp - _sessionStartTime;
+        uint256 userPeriodDuration = block.timestamp -
+            _users[account].lastUpdateTime;
         return
             stakingDuration()
-                .mul(totalPeriod)
+                .mul(sessionDuration)
                 .sub(
-                    totalPeriod.sub(currentPeriod).mul(
+                    sessionDuration.sub(userPeriodDuration).mul(
                         _users[account].stakingDuration
                     )
                 )
-                .div(currentPeriod);
+                .div(userPeriodDuration);
     }
 
     /* ========== MUTATIVE FUNCTIONS ========== */
@@ -169,29 +178,31 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
 
     modifier updateStakingDuration(address account) {
         averageStakingDuration = stakingDuration();
-        _sumOfEntryTimes -= _users[account].lastUpdateTime.mul(
-            _users[account].balance
-        );
+        _sumOfEntryTimes = _users[account].lastUpdateTime
+            .mul(_users[account].balance)
+            .sub(_sumOfEntryTimes);
         if (account != address(0)) {
             _users[account].stakingDuration = averageStakingDuration;
             _users[account].lastUpdateTime = block.timestamp;
         }
         _;
-        _sumOfEntryTimes += block.timestamp.mul(_users[account].balance);
+        _sumOfEntryTimes = block.timestamp.mul(_users[account].balance).add(
+            _sumOfEntryTimes
+        );
     }
 
     modifier updateStakelessDuration() {
         if (_totalSupply == 0) {
-            _periodStartTime = block.timestamp;
-            _stakelessDuration += _periodStartTime - _periodEndTime;
+            _sessionStartTime = block.timestamp;
+            _stakelessDuration += _sessionStartTime - _sessionEndTime;
         }
         _;
     }
 
-    modifier updatePeriodEndTime() {
+    modifier updateSessionEndTime() {
         _;
         if (_totalSupply == 0) {
-            _periodEndTime = block.timestamp;
+            _sessionEndTime = block.timestamp;
         }
     }
 
