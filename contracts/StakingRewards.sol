@@ -178,9 +178,9 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
 
     modifier updateStakingDuration(address account) {
         averageStakingDuration = stakingDuration();
-        _sumOfEntryTimes = _users[account].lastUpdateTime
-            .mul(_users[account].balance)
-            .sub(_sumOfEntryTimes);
+        _sumOfEntryTimes = _sumOfEntryTimes.sub(
+            _users[account].lastUpdateTime.mul(_users[account].balance)
+        );
         if (account != address(0)) {
             _users[account].stakingDuration = averageStakingDuration;
             _users[account].lastUpdateTime = block.timestamp;
