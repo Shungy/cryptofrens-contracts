@@ -1,13 +1,10 @@
 // SPDX-License-Identifier: GPLv3
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Happy is ERC20("Happiness", "HAPPY"), Ownable {
-    using SafeMath for uint256;
-
     address[] public minters;
     uint256 private _burnedSupply;
     uint256 private _maxSupply = 10000000 ether;
@@ -29,7 +26,7 @@ contract Happy is ERC20("Happiness", "HAPPY"), Ownable {
             }
         }
         require(isMinter, "Happy: sender is not allowed to mint");
-        assert(_maxSupply > totalSupply().add(amount));
+        assert(_maxSupply > totalSupply() + amount);
         _mint(account, amount);
     }
 

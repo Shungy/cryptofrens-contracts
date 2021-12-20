@@ -5,8 +5,6 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "./StakingRewards.sol";
 
 contract ERC721StakingRewards is Pausable, StakingRewards {
-    using SafeMath for uint256;
-
     mapping(address => mapping(uint256 => uint256)) private _tokensOf;
     mapping(uint256 => uint256) private _tokensIndex;
 
@@ -53,7 +51,7 @@ contract ERC721StakingRewards is Pausable, StakingRewards {
                 tokens[i]
             );
         }
-        _totalSupply = _totalSupply.add(tokens.length);
+        _totalSupply += tokens.length;
         emit Staked(msg.sender, tokens);
     }
 
@@ -89,7 +87,7 @@ contract ERC721StakingRewards is Pausable, StakingRewards {
                 tokens[i]
             );
         }
-        _totalSupply = _totalSupply.sub(tokens.length);
+        _totalSupply -= tokens.length;
         emit Withdrawn(msg.sender, tokens);
     }
 

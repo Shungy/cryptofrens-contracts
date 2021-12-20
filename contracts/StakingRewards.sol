@@ -4,12 +4,9 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./CoreTokens.sol";
 
 contract StakingRewards is ReentrancyGuard, CoreTokens {
-    using SafeMath for uint256;
-
     /* ========== STATE VARIABLES ========== */
 
     uint256 public lastUpdateTime;
@@ -67,43 +64,37 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
             return rewardPerTokenStored;
         }
         return
-            rewardPerTokenStored.add(
-                /*
-                 * Calculation  below  gives  the   amount  of  reward  tokens
-                 * ‘owed’ per one staking token since rewardPerTokenStored
-                 * was last updated. Adding this value to rewardPerTokenStored
-                 * gives the new rewardPerTokenStored at block.timestamp.
-                 *
-                 *
-                 * DurationSinceUpdate * MintableSupply * MinterAllocation
-                 * -------------------------------------------------------
-                 *    ( 200 days + EmissionsDuration ) * StakedSupply
-                 */
-                block.timestamp
-                .sub(lastUpdateTime)
-                .mul(_rewardTokenMaxSupply.add(rewardToken.burnedSupply()))
-                .mul(10**_stakingTokenDecimals)
-                    .mul(rewardAllocationMultiplier)
-                    .div(REWARD_ALLOCATION_DIVISOR)
-                    .div(
-                        PSEUDO_REWARD_DURATION.add(block.timestamp).sub(
-                            _stakelessDuration
-                        )
-                    )
-                    .div(_totalSupply)
-            );
+            /*
+             * Calculation  below  gives  the   amount  of  reward  tokens
+             * ‘owed’ per one staking token since rewardPerTokenStored
+             * was last updated. Adding this value to rewardPerTokenStored
+             * gives the new rewardPerTokenStored at block.timestamp.
+             *
+             *
+             * DurationSinceUpdate * MintableSupply * MinterAllocation
+             * -------------------------------------------------------
+             *    ( 200 days + EmissionsDuration ) * StakedSupply
+             */
+            rewardPerTokenStored +
+            (((block.timestamp - lastUpdateTime) *
+                (_rewardTokenMaxSupply + rewardToken.burnedSupply()) *
+                10**_stakingTokenDecimals *
+                rewardAllocationMultiplier) /
+                REWARD_ALLOCATION_DIVISOR /
+                _totalSupply /
+                (PSEUDO_REWARD_DURATION +
+                    block.timestamp -
+                    _stakelessDuration));
     }
 
     function earned(address account) public view returns (uint256) {
         return
-            /*
-             * (UserBalance*UserRewardPerToken*UserAprModifier)+StoredRewards
-             */
-            _users[account].balance
-            .mul(rewardPerToken().sub(_users[account].rewardPerTokenPaid))
-            .mul(userStakingDuration(account))
-            .div(averageStakingDuration)
-            .div(10**_stakingTokenDecimals).add(_users[account].reward);
+            _users[account].reward +
+            ((_users[account].balance *
+                (rewardPerToken() - _users[account].rewardPerTokenPaid) *
+                userStakingDuration(account)) /
+                averageStakingDuration /
+                10**_stakingTokenDecimals);
     }
 
     function stakingDuration() public view returns (uint256) {
@@ -113,14 +104,9 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         uint256 sessionDuration = block.timestamp - _sessionStartTime;
         uint256 periodDuration = block.timestamp - lastUpdateTime;
         return
-            averageStakingDuration
-                .mul(sessionDuration.sub(periodDuration))
-                .add(
-                    block.timestamp.mul(_totalSupply).sub(_sumOfEntryTimes).mul(
-                        periodDuration
-                    )
-                )
-                .div(sessionDuration);
+            ((averageStakingDuration * (sessionDuration - periodDuration)) +
+                ((block.timestamp * _totalSupply - _sumOfEntryTimes) *
+                    periodDuration)) / sessionDuration;
     }
 
     function userStakingDuration(address account)
@@ -138,14 +124,9 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         uint256 userPeriodDuration = block.timestamp -
             _users[account].lastUpdateTime;
         return
-            stakingDuration()
-                .mul(sessionDuration)
-                .sub(
-                    sessionDuration.sub(userPeriodDuration).mul(
-                        _users[account].stakingDuration
-                    )
-                )
-                .div(userPeriodDuration);
+            ((stakingDuration() * sessionDuration) -
+                ((sessionDuration - userPeriodDuration) *
+                    _users[account].stakingDuration)) / userPeriodDuration;
     }
 
     /* ========== MUTATIVE FUNCTIONS ========== */
@@ -178,17 +159,15 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
 
     modifier updateStakingDuration(address account) {
         averageStakingDuration = stakingDuration();
-        _sumOfEntryTimes = _sumOfEntryTimes.sub(
-            _users[account].lastUpdateTime.mul(_users[account].balance)
-        );
+        _sumOfEntryTimes -=
+            _users[account].lastUpdateTime *
+            _users[account].balance;
         if (account != address(0)) {
             _users[account].stakingDuration = averageStakingDuration;
             _users[account].lastUpdateTime = block.timestamp;
         }
         _;
-        _sumOfEntryTimes = block.timestamp.mul(_users[account].balance).add(
-            _sumOfEntryTimes
-        );
+        _sumOfEntryTimes += block.timestamp * _users[account].balance;
     }
 
     modifier updateStakelessDuration() {
