@@ -7,6 +7,8 @@ import "./StakingRewards.sol";
 contract ERC20StakingRewards is Pausable, StakingRewards {
     using SafeERC20 for IERC20;
 
+    bool public stakingTokenSet = false;
+
     constructor(
         address _stakingToken,
         address _rewardToken,
@@ -57,6 +59,20 @@ contract ERC20StakingRewards is Pausable, StakingRewards {
     function exit() external {
         withdraw(_users[msg.sender].balance);
         getReward();
+    }
+
+    function setStakingToken(address _stakingToken) public onlyOwner {
+        // this function should be set before pool is publicized
+        require(
+            stakingTokenSet == false,
+            "ERC20StakingRewards: Staking token was already set"
+        );
+        require(
+            _totalSupply == 0,
+            "ERC20StakingRewards: Cannot change staking token"
+        );
+        stakingToken = _stakingToken;
+        stakingTokenSet = true;
     }
 
     event Staked(address indexed user, uint256 amount);

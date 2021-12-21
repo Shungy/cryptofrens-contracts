@@ -88,6 +88,9 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
     }
 
     function earned(address account) public view returns (uint256) {
+        if (_totalSupply == 0) {
+            return _users[account].reward;
+        }
         return
             _users[account].reward +
             ((_users[account].balance *

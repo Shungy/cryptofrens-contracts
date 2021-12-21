@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPLv3
+// solhint-disable not-rely-on-time
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -88,11 +89,11 @@ contract Happy is ERC20("Happiness", "HAPPY"), Ownable {
     function setPendingMinters(address[] memory _minters) public onlyOwner {
         pendingMinters = _minters;
         timelockEnd = block.timestamp + _TIMELOCK;
-        emit pendingMintersSet(pendingMinters, timelockEnd);
+        emit PendingMintersSet(pendingMinters, timelockEnd);
     }
 
     function cancelPendingMinters() public onlyOwner clearTimelock {
-        emit pendingMintersCancelled(pendingMinters);
+        emit PendingMintersCancelled(pendingMinters);
     }
 
     function setMinters() public onlyOwner clearTimelock {
@@ -104,7 +105,7 @@ contract Happy is ERC20("Happiness", "HAPPY"), Ownable {
             );
         }
         minters = pendingMinters;
-        emit mintersSet(minters);
+        emit MintersSet(minters);
     }
 
     modifier clearTimelock() {
@@ -129,7 +130,7 @@ contract Happy is ERC20("Happiness", "HAPPY"), Ownable {
         _;
     }
 
-    event pendingMintersSet(address[] pendingMinters, uint256 timelockEnd);
-    event pendingMintersCancelled(address[] pendingMinters);
-    event mintersSet(address[] minters);
+    event PendingMintersSet(address[] pendingMinters, uint256 timelockEnd);
+    event PendingMintersCancelled(address[] pendingMinters);
+    event MintersSet(address[] minters);
 }
