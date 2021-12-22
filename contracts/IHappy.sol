@@ -6,7 +6,9 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 interface IHappy is IERC20 {
     function burnedSupply() external view returns (uint256);
 
-    function maxSupply() external view returns (uint256);
+    function maxSupply() external pure returns (uint256);
+
+    function initSupply() external pure returns (uint256);
 
     function mint(address account, uint256 amount) external;
 

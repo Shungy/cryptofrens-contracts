@@ -16,6 +16,11 @@ contract Happy is ERC20("Happiness", "HAPPY"), Ownable {
 
     uint256 private constant _MAX_SUPPLY = 10000000 ether;
     uint256 private constant _TIMELOCK = 2 weeks;
+    uint256 private constant _INIT_SUPPLY = 100 ether;
+
+    constructor() {
+        _mint(msg.sender, _INIT_SUPPLY);
+    }
 
     function burnedSupply() public view returns (uint256) {
         return _burnedSupply;
@@ -23,6 +28,10 @@ contract Happy is ERC20("Happiness", "HAPPY"), Ownable {
 
     function maxSupply() public pure returns (uint256) {
         return _MAX_SUPPLY;
+    }
+
+    function initSupply() public pure returns (uint256) {
+        return _INIT_SUPPLY;
     }
 
     function transfer(address recipient, uint256 amount)
