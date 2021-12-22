@@ -44,8 +44,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         uint256 _rewardMultiplier,
         uint256 _stakingDecimals
     ) CoreTokens(_stakingToken, _rewardToken) {
-        _rewardTokenMaxSupply = rewardToken.maxSupply() -
-            rewardToken.initSupply();
+        _rewardTokenMaxSupply = rewardToken.maxSupply();
         rewardAllocationMultiplier = _rewardMultiplier;
         _stakingTokenDecimals = _stakingDecimals;
     }

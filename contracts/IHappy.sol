@@ -8,8 +8,6 @@ interface IHappy is IERC20 {
 
     function maxSupply() external pure returns (uint256);
 
-    function initSupply() external pure returns (uint256);
-
     function mint(address account, uint256 amount) external;
 
     function burn(uint256 amount) external;
