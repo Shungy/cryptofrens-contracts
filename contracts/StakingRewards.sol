@@ -6,6 +6,8 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./CoreTokens.sol";
 
+import "hardhat/console.sol";
+
 contract StakingRewards is ReentrancyGuard, CoreTokens {
     /* ========== STATE VARIABLES ========== */
 
@@ -88,24 +90,25 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
     }
 
     function earned(address account) public view returns (uint256) {
+        User memory user = _users[account];
         if (_totalSupply == 0) {
-            return _users[account].reward;
+            return user.reward;
         }
         return
-            _users[account].reward +
-            ((_users[account].balance *
-                (rewardPerToken() - _users[account].rewardPerTokenPaid) *
+            user.reward +
+            ((user.balance *
+                (rewardPerToken() - user.rewardPerTokenPaid) *
                 userStakingDuration(account)) /
                 averageStakingDuration /
                 10**_stakingTokenDecimals);
     }
 
     function stakingDuration() public view returns (uint256) {
-        if (_totalSupply == 0) {
-            return 0;
-        }
         uint256 sessionDuration = block.timestamp - _sessionStartTime;
         uint256 periodDuration = block.timestamp - lastUpdateTime;
+        if (_totalSupply == 0 || sessionDuration == 0) {
+            return 0;
+        }
         return
             ((averageStakingDuration * (sessionDuration - periodDuration)) +
                 ((block.timestamp * _totalSupply - _sumOfEntryTimes) *
@@ -117,19 +120,25 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         view
         returns (uint256)
     {
-        // get average staking duration during the user's staking period
-        // by calculating the change between current staking duration vs
-        // cached staking duration
-        if (_users[account].balance == 0) {
+        User memory user = _users[account];
+        if (user.balance == 0 || block.timestamp == user.lastUpdateTime) {
             return 0;
         }
-        uint256 sessionDuration = block.timestamp - _sessionStartTime;
-        uint256 userPeriodDuration = block.timestamp -
-            _users[account].lastUpdateTime;
+        /*
+        averageStakingDuration * (block.timestamp - _sessionStartTime)
+        =
+        user.stakingDuration * (user.lastUpdateTime - _sessionStartTime)
+        +
+        userStakingDuration * (block.timestamp - user.lastUpdateTime)
+        =>
+        userStakingDuration =
+        */
         return
-            ((stakingDuration() * sessionDuration) -
-                ((sessionDuration - userPeriodDuration) *
-                    _users[account].stakingDuration)) / userPeriodDuration;
+            (stakingDuration() *
+                (block.timestamp - _sessionStartTime) -
+                user.stakingDuration *
+                (user.lastUpdateTime - _sessionStartTime)) /
+            (block.timestamp - user.lastUpdateTime);
     }
 
     /* ========== MUTATIVE FUNCTIONS ========== */
@@ -153,22 +162,17 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
     modifier updateReward(address account) {
         rewardPerTokenStored = rewardPerToken();
         lastUpdateTime = block.timestamp;
-        if (account != address(0)) {
-            _users[account].reward = earned(account);
-            _users[account].rewardPerTokenPaid = rewardPerTokenStored;
-        }
+        _users[account].reward = earned(account);
+        _users[account].rewardPerTokenPaid = rewardPerTokenStored;
         _;
     }
 
     modifier updateStakingDuration(address account) {
+        User memory user = _users[account];
         averageStakingDuration = stakingDuration();
-        _sumOfEntryTimes -=
-            _users[account].lastUpdateTime *
-            _users[account].balance;
-        if (account != address(0)) {
-            _users[account].stakingDuration = averageStakingDuration;
-            _users[account].lastUpdateTime = block.timestamp;
-        }
+        _sumOfEntryTimes -= user.lastUpdateTime * user.balance;
+        _users[account].stakingDuration = averageStakingDuration;
+        _users[account].lastUpdateTime = block.timestamp;
         _;
         _sumOfEntryTimes += block.timestamp * _users[account].balance;
     }
