@@ -23,7 +23,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
     uint256 private _sessionEndTime;
     uint256 private _sumOfEntryTimes;
 
-    uint256 private constant REWARD_ALLOCATION_DIVISOR = 100;
+    uint256 private constant REWARD_ALLOCATION_DIVISOR = 10;
     uint256 private constant PSEUDO_REWARD_DURATION = 200 days;
 
     struct User {

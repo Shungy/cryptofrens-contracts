@@ -30,7 +30,7 @@ async function main() {
   const happy = await Happy.deploy();
 
   await happy.deployed();
-  console.log("Happy deployed to:", happy.address);
+  console.log("HAPPY_ADDRESS=\"" + happy.address + "\"");
 
   // create LP
 
@@ -39,29 +39,28 @@ async function main() {
 
   await pangolinFactory.createPair(wavaxAddress,happy.address);
   const poolAddress = await pangolinFactory.getPair(wavaxAddress,happy.address);
-  console.log("Created WAVAX-HAPPY LP:", poolAddress);
+  console.log("LP_ADDRESS=\"" + poolAddress + "\"");
 
   // ERC721StakingRewards
 
   const StakingRewardsERC721 = await hre.ethers.getContractFactory("ERC721StakingRewards");
-  const stakingRewardsERC721 = await StakingRewardsERC721.deploy(cryptoFrens.address, happy.address, 10, 0);
+  const stakingRewardsERC721 = await StakingRewardsERC721.deploy(cryptoFrens.address, happy.address, 1, 0);
 
   await stakingRewardsERC721.deployed();
-  console.log("ERC721StakingRewards deployed to:", stakingRewardsERC721.address);
+  console.log("NFT_STAKING_ADDRESS=\"" + stakingRewardsERC721.address + "\"");
 
   // ERC20StakingRewards
 
   const StakingRewardsERC20 = await hre.ethers.getContractFactory("ERC20StakingRewards");
-  const stakingRewardsERC20 = await StakingRewardsERC20.deploy(poolAddress, happy.address, 90, 18);
+  const stakingRewardsERC20 = await StakingRewardsERC20.deploy(poolAddress, happy.address, 9, 18);
 
   await stakingRewardsERC20.deployed();
-  console.log("ERC20StakingRewards deployed to:", stakingRewardsERC20.address);
+  console.log("LP_STAKING_ADDRESS=\"" + stakingRewardsERC20.address + "\"");
 
   // Set minter contracts for happy
 
   await happy.setPendingMinters([stakingRewardsERC20.address,stakingRewardsERC721.address]);
   await happy.setMinters();
-  console.log("Happy minters set");
 }
 
 // We recommend this pattern to be able to use async/await everywhere

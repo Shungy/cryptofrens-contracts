@@ -5,9 +5,9 @@
   "main": ".eslintrc.js",
   "scripts": {
     "compile": "export LANG=C && npx hardhat compile",
-    "deploy": "npx hardhat --network localhost run scripts/deploy.js",
-    "node": "npx hardhat node",
-    "test": "yarn deploy && npx hardhat test"
+    "deploy": "export LANG=C && npx hardhat --network localhost run scripts/deploy.js > .contracts.env",
+    "node": "export LANG=C && npx hardhat node",
+    "test": "export LANG=C && npx hardhat --network localhost test"
   },
   "author": "",
   "license": "ISC",
