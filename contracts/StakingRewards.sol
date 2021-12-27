@@ -51,34 +51,36 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
 
     /* ========== VIEWS ========== */
 
+    /// @return total amount of tokens staked in the contract
     function totalSupply() external view returns (uint256) {
         return _totalSupply;
     }
 
+    /// @param account wallet address of user
+    /// @return amount of tokens staked by the account
     function balanceOf(address account) external view returns (uint256) {
         return _users[account].balance;
     }
 
+    /// @return reward per token accumulated since first stake
+    /// @notice
     function rewardPerToken() public view returns (uint256) {
         if (_totalSupply == 0) {
             return rewardPerTokenStored;
         }
+        /*
+         * rewardPerTokenStored + (
+         *   DurationSinceUpdate * MintableSupply * MinterAllocation
+         *   -------------------------------------------------------
+         *      ( 200 days + EmissionsDuration ) * StakedSupply
+         * )
+         */
         return
-            /*
-             * Calculation  below  gives  the   amount  of  reward  tokens
-             * ‘owed’ per one staking token since rewardPerTokenStored
-             * was last updated. Adding this value to rewardPerTokenStored
-             * gives the new rewardPerTokenStored at block.timestamp.
-             *
-             *
-             * DurationSinceUpdate * MintableSupply * MinterAllocation
-             * -------------------------------------------------------
-             *    ( 200 days + EmissionsDuration ) * StakedSupply
-             */
             rewardPerTokenStored +
             (((block.timestamp - lastUpdateTime) *
                 (_rewardTokenMaxSupply + rewardToken.burnedSupply()) *
-                PRECISION * rewardAllocationMultiplier) /
+                PRECISION *
+                rewardAllocationMultiplier) /
                 REWARD_ALLOCATION_DIVISOR /
                 _totalSupply /
                 (PSEUDO_REWARD_DURATION +
@@ -86,6 +88,8 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
                     _stakelessDuration));
     }
 
+    /// @param account wallet address of user
+    /// @return amount of reward tokens the account can harvest
     function earned(address account) public view returns (uint256) {
         User memory user = _users[account];
         if (_totalSupply == 0) {
@@ -96,22 +100,43 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
             ((user.balance *
                 (rewardPerToken() - user.rewardPerTokenPaid) *
                 userStakingDuration(account)) /
-                averageStakingDuration /
+                (
+                    lastUpdateTime == block.timestamp
+                        ? averageStakingDuration // on internal
+                        : stakingDuration() // only on external
+                ) /
                 PRECISION);
     }
 
+    /// @return average staking duration per token
+    /// @notice staking duration of a token resets on interaction
+    /// @notice interaction refers to stake, harvest, and withdraw
     function stakingDuration() public view returns (uint256) {
-        uint256 sessionDuration = block.timestamp - _sessionStartTime;
-        uint256 periodDuration = block.timestamp - lastUpdateTime;
-        if (_totalSupply == 0 || sessionDuration == 0) {
+        if (_totalSupply == 0 || block.timestamp == _sessionStartTime) {
             return 0;
         }
+        /*
+         * stakingDuration() * (block.timestamp - _sessionStartTime)
+         * =
+         * averageStakingDuration * (lastUpdateTime - _sessionStartTime)
+         * +
+         * (block.timestamp * _totalSupply - _sumOfEntryTimes)
+         * *
+         * (block.timestamp - lastUpdateTime)
+         * =>
+         * stakingDuration() =
+         */
         return
-            ((averageStakingDuration * (sessionDuration - periodDuration)) +
-                ((block.timestamp * _totalSupply - _sumOfEntryTimes) *
-                    periodDuration)) / sessionDuration;
+            (averageStakingDuration *
+                (lastUpdateTime - _sessionStartTime) +
+                (block.timestamp * _totalSupply - _sumOfEntryTimes) *
+                (block.timestamp - lastUpdateTime)) /
+            (block.timestamp - _sessionStartTime);
     }
 
+    /// @param account wallet address of user
+    /// @return average staking duration during user has been staking
+    /// without interacting with the contract
     function userStakingDuration(address account)
         public
         view
@@ -128,7 +153,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
          * +
          * userStakingDuration * (block.timestamp - user.lastUpdateTime)
          * =>
-         * userStakingDuration =
+         * userStakingDuration() =
          */
         return
             (stakingDuration() *
