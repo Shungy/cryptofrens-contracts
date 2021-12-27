@@ -20,7 +20,6 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 module.exports = {
   networks: {
     hardhat: {
-      accounts: [{privateKey: process.env.PRIVATE_KEY, balance: "100000000000000000000000"}],
       chainId: 43112,
       forking: {
         url: "https://api.avax.network/ext/bc/C/rpc",
