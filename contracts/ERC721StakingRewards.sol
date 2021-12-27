@@ -11,14 +11,12 @@ contract ERC721StakingRewards is Pausable, StakingRewards {
     constructor(
         address _stakingToken,
         address _rewardToken,
-        uint256 _rewardMultiplier,
-        uint256 _stakingTokenDecimals
+        uint256 _rewardMultiplier
     )
         StakingRewards(
             _stakingToken,
             _rewardToken,
-            _rewardMultiplier,
-            _stakingTokenDecimals
+            _rewardMultiplier
         )
     {}
 

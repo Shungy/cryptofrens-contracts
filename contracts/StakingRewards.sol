@@ -19,12 +19,12 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
     uint256 internal _totalSupply;
 
     uint256 private _rewardTokenMaxSupply;
-    uint256 private _stakingTokenDecimals;
     uint256 private _stakelessDuration;
     uint256 private _sessionStartTime;
     uint256 private _sessionEndTime;
     uint256 private _sumOfEntryTimes;
 
+    uint256 private constant PRECISION = 1e10;
     uint256 private constant REWARD_ALLOCATION_DIVISOR = 10;
     uint256 private constant PSEUDO_REWARD_DURATION = 200 days;
 
@@ -43,12 +43,10 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
     constructor(
         address _stakingToken,
         address _rewardToken,
-        uint256 _rewardMultiplier,
-        uint256 _stakingDecimals
+        uint256 _rewardMultiplier
     ) CoreTokens(_stakingToken, _rewardToken) {
         _rewardTokenMaxSupply = rewardToken.maxSupply();
         rewardAllocationMultiplier = _rewardMultiplier;
-        _stakingTokenDecimals = _stakingDecimals;
     }
 
     /* ========== VIEWS ========== */
@@ -80,7 +78,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
             rewardPerTokenStored +
             (((block.timestamp - lastUpdateTime) *
                 (_rewardTokenMaxSupply + rewardToken.burnedSupply()) *
-                10**_stakingTokenDecimals *
+                PRECISION *
                 rewardAllocationMultiplier) /
                 REWARD_ALLOCATION_DIVISOR /
                 _totalSupply /
@@ -100,7 +98,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
                 (rewardPerToken() - user.rewardPerTokenPaid) *
                 userStakingDuration(account)) /
                 averageStakingDuration /
-                10**_stakingTokenDecimals);
+                PRECISION);
     }
 
     function stakingDuration() public view returns (uint256) {
