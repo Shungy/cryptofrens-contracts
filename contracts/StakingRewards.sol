@@ -122,14 +122,14 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
             return 0;
         }
         /*
-        averageStakingDuration * (block.timestamp - _sessionStartTime)
-        =
-        user.stakingDuration * (user.lastUpdateTime - _sessionStartTime)
-        +
-        userStakingDuration * (block.timestamp - user.lastUpdateTime)
-        =>
-        userStakingDuration =
-        */
+         * stakingDuration() * (block.timestamp - _sessionStartTime)
+         * =
+         * user.stakingDuration * (user.lastUpdateTime - _sessionStartTime)
+         * +
+         * userStakingDuration * (block.timestamp - user.lastUpdateTime)
+         * =>
+         * userStakingDuration =
+         */
         return
             (stakingDuration() *
                 (block.timestamp - _sessionStartTime) -
