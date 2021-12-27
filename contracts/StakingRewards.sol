@@ -78,8 +78,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
             rewardPerTokenStored +
             (((block.timestamp - lastUpdateTime) *
                 (_rewardTokenMaxSupply + rewardToken.burnedSupply()) *
-                PRECISION *
-                rewardAllocationMultiplier) /
+                PRECISION * rewardAllocationMultiplier) /
                 REWARD_ALLOCATION_DIVISOR /
                 _totalSupply /
                 (PSEUDO_REWARD_DURATION +
