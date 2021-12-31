@@ -6,8 +6,6 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./CoreTokens.sol";
 
-import "hardhat/console.sol";
-
 contract StakingRewards is ReentrancyGuard, CoreTokens {
     /* ========== STATE VARIABLES ========== */
 
@@ -25,7 +23,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
     uint256 private _sumOfEntryTimes;
 
     uint256 private constant PRECISION = 1e10;
-    uint256 private constant REWARD_ALLOCATION_DIVISOR = 10;
+    uint256 private constant REWARD_ALLOCATION_DIVISOR = 100;
     uint256 private constant PSEUDO_REWARD_DURATION = 200 days;
 
     struct User {
@@ -62,19 +60,12 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         return _users[account].balance;
     }
 
-    /// @return reward per token accumulated since first stake
-    /// @notice
+    /// @return reward per staked token accumulated since first stake
+    /// @notice refer to README.md for derivation
     function rewardPerToken() public view returns (uint256) {
         if (_totalSupply == 0) {
             return rewardPerTokenStored;
         }
-        /*
-         * rewardPerTokenStored + (
-         *   DurationSinceUpdate * MintableSupply * MinterAllocation
-         *   -------------------------------------------------------
-         *      ( 200 days + EmissionsDuration ) * StakedSupply
-         * )
-         */
         return
             rewardPerTokenStored +
             (((block.timestamp - lastUpdateTime) *
@@ -165,6 +156,11 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
 
     /* ========== MUTATIVE FUNCTIONS ========== */
 
+    /// @notice harvests user’s (message sender) accumulated rewards
+    /// @dev getReward is shared by ERC20StakingRewards and
+    /// ERC721StakingRewards. For stake and withdraw functions refer
+    /// to those contracts as those functions have to be different for
+    /// ERC20 and ERC721.
     function getReward()
         public
         nonReentrant
@@ -179,13 +175,31 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         }
     }
 
+    /* ========== RESTRICTED FUNCTIONS ========== */
+
+    /// @param percent percentage of max supply of HAPPY
+    /// eligible to be minted by this contract
+    function changeMinterAllocation(uint256 percent)
+        public
+        updateReward(address(0))
+        onlyOwner
+    {
+        require(
+            percent < 101,
+            "StakingRewards: cant set percent higher than 100"
+        );
+        rewardAllocationMultiplier = percent;
+    }
+
     /* ========== MODIFIERS ========== */
 
     modifier updateReward(address account) {
         rewardPerTokenStored = rewardPerToken();
         lastUpdateTime = block.timestamp;
-        _users[account].reward = earned(account);
-        _users[account].rewardPerTokenPaid = rewardPerTokenStored;
+        if (account != address(0)) {
+            _users[account].reward = earned(account);
+            _users[account].rewardPerTokenPaid = rewardPerTokenStored;
+        }
         _;
     }
 

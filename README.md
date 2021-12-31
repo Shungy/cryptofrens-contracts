@@ -6,7 +6,7 @@ HAPPY is an ERC20 token with a novel staking algorithm with per-user APR.
 
 ### Rewards Storage
 
-This logic comes from [Synthetix‘s StakingRewards contract](https://github.com/Synthetixio/synthetix/blob/v2.54.0/contracts/StakingRewards.sol).
+This logic comes from [Synthetix’s StakingRewards contract](https://github.com/Synthetixio/synthetix/blob/v2.54.0/contracts/StakingRewards.sol).
 It stores the amount of reward tokens per staking
 token that could have been issued to date, and keeps track of user’s
 stored reward tokens (unharvested tokens). When
@@ -18,10 +18,10 @@ as people stake and withdraw. This is taken into consideration by change in rewa
 
 HAPPY has some differences to this basic model.
 
-### Exponential Decay
+### Emission Decay
 
 While Synthetix’s staking contract has constant emission (e.g. 1 reward token per second), Happy uses
-an exponential decay function to ensure limited supply with perpetual emissions. This also benefits
+a decay function to ensure limited supply with perpetual emissions. This also benefits
 early users as the reward rate decreases over time.
 
 The emissions with decay is calculated as `dt/(200 days+dt)`, where `200 days` is an arbitrary duration during which
@@ -37,9 +37,10 @@ Burned reward tokens are also taken into consideration when calculating the rewa
 are burned and total supply decreases, the emission rate will increase.
 
 With this addition the reward rate becomes `((total reward token supply + burned supply) / (200 days+dt))`.
+For the final formula refer to `rewardPerToken` function.
 
 The burning of the tokens will be incentivized
-with future products, and also a 3% transaction tax is burned to create an interesting dynamic.
+with future products. Also Happy contract allows setting a transaction tax, which burns all the tax. Initially no transaction tax will be set.
 
 ### Per-User APR Based on Staking Duration
 
@@ -55,9 +56,11 @@ These interactions can be staking, withdrawing, or harvesting.
 You will need to refer to the code on how average staking duration and per-user staking duration
 is calculated. Refer to `updateStakingDuration` modifier and `userStakingDuration` and `stakingDuration` functions.
 
-In the end `userStakingDuration(account) / stakingDuration()` is used as per-user multiplier.
+In the end `userStakingDuration(account) / stakingDuration()` is used as per-user multiplier. Refer to `earned` function.
 
 ## Commands
+
+Refer to `scripts/deploy.js` to see how all the contracts fit together.
 
 ```shell
 npx hardhat node

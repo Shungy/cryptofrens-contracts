@@ -12,13 +12,7 @@ contract ERC721StakingRewards is Pausable, StakingRewards {
         address _stakingToken,
         address _rewardToken,
         uint256 _rewardMultiplier
-    )
-        StakingRewards(
-            _stakingToken,
-            _rewardToken,
-            _rewardMultiplier
-        )
-    {}
+    ) StakingRewards(_stakingToken, _rewardToken, _rewardMultiplier) {}
 
     function tokensOf(address account) public view returns (uint256[] memory) {
         uint256 balance = _users[msg.sender].balance;
@@ -37,8 +31,10 @@ contract ERC721StakingRewards is Pausable, StakingRewards {
         updateStakingDuration(msg.sender)
         updateReward(msg.sender)
     {
-        // register tokens to users name
-        require(tokens.length > 0, "ERC721StakingRewards: Cant stake nothin");
+        require(
+            tokens.length > 0 && tokens.length < 40,
+            "ERC721StakingRewards: Invalid stake amount"
+        );
         for (uint256 i; i < tokens.length; i++) {
             uint256 tokenId = tokens[i];
             uint256 balance = _users[msg.sender].balance;
@@ -62,6 +58,10 @@ contract ERC721StakingRewards is Pausable, StakingRewards {
         updateStakingDuration(msg.sender)
         updateReward(msg.sender)
     {
+        require(
+            tokens.length < 40,
+            "ERC721StakingRewards: withdraw max 39 at a time"
+        );
         for (uint256 i; i < tokens.length; i++) {
             // store the last token in the index of the token to delete, and
             // then delete the last slot (swap and pop).

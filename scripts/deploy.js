@@ -44,7 +44,7 @@ async function main() {
   // ERC721StakingRewards
 
   const StakingRewardsERC721 = await hre.ethers.getContractFactory("ERC721StakingRewards");
-  const stakingRewardsERC721 = await StakingRewardsERC721.deploy(cryptoFrens.address, happy.address, 1);
+  const stakingRewardsERC721 = await StakingRewardsERC721.deploy(cryptoFrens.address, happy.address, 10);
 
   await stakingRewardsERC721.deployed();
   console.log("NFT_STAKING_ADDRESS=\"" + stakingRewardsERC721.address + "\"");
@@ -52,7 +52,7 @@ async function main() {
   // ERC20StakingRewards
 
   const StakingRewardsERC20 = await hre.ethers.getContractFactory("ERC20StakingRewards");
-  const stakingRewardsERC20 = await StakingRewardsERC20.deploy(poolAddress, happy.address, 9);
+  const stakingRewardsERC20 = await StakingRewardsERC20.deploy(poolAddress, happy.address, 90);
 
   await stakingRewardsERC20.deployed();
   console.log("LP_STAKING_ADDRESS=\"" + stakingRewardsERC20.address + "\"");
