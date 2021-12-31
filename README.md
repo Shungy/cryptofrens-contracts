@@ -28,19 +28,19 @@ The emissions with decay is calculated as `dt/(200 days+dt)`, where `200 days` i
 the half of tokens will be emitted, and `dt` is the time passed since the initial staking, given the contract
 always had `>0` total staked supply.
 
-The reward rate becomes `(total reward token supply) / (200 days+dt)`. Note that total supply is never reached,
+The reward rate becomes `(max reward token supply) / (200 days+dt)`. Note that max supply is never reached,
 because as `dt` approaches to infinity, `dt / (200 days+dt)` approaches to 1.
 
 ### Burn Mechanism
 
 Burned reward tokens are also taken into consideration when calculating the reward rate. This means that as reward tokens
-are burned and total supply decreases, the emission rate will increase.
+are burned and total supply decreases, the emission rate will increase. In the formula the total supply is implicit in `dt` and burned supply.
 
-With this addition the reward rate becomes `((total reward token supply + burned supply) / (200 days+dt))`.
+With this addition the reward rate becomes `((max reward token supply + burned supply) / (200 days+dt))`.
 For the final formula refer to `rewardPerToken` function.
 
 The burning of the tokens will be incentivized
-with future products. Also Happy contract allows setting a transaction tax, which burns all the tax. Initially no transaction tax will be set.
+with future products. Also Happy contract allows setting a transaction tax, which burns all the tax. Though, initially, no transaction tax will be set.
 
 ### Per-User APR Based on Staking Duration
 
@@ -49,14 +49,14 @@ on how long they have been staking. The logic ensures that the average of multip
 equal to `1`, such that emission schedule described in previous paragraphs will continue to hold true.
 
 Note that “staking duration” mentioned here has a nuance, and it is not simply the duration between
-staking and withdrawing. *Staking duration
-of a staked token of a user* is the time between the two contract interactions by that user.
+staking and withdrawing. *Staking duration of a staked token of a user* is the time between the two contract interactions by that user.
 These interactions can be staking, withdrawing, or harvesting.
 
-You will need to refer to the code on how average staking duration and per-user staking duration
-is calculated. Refer to `updateStakingDuration` modifier and `userStakingDuration` and `stakingDuration` functions.
+Please refer to the code on how average staking duration and per-user staking duration
+is calculated. See `updateStakingDuration` modifier and `userStakingDuration` and `stakingDuration` functions.
 
 In the end `userStakingDuration(account) / stakingDuration()` is used as per-user multiplier. Refer to `earned` function.
+Tests yet to be done to confirm the logic.
 
 ## Commands
 
