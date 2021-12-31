@@ -131,7 +131,7 @@ contract Happy is Ownable {
 
     function setMinters() public onlyOwner clearTimelock {
         require(
-            minters.length != 0 ||
+            minters.length == 0 ||
                 (timelockEnd != 0 && block.timestamp >= timelockEnd),
             "Happy: cannot change minter contracts before timelock end"
         );
