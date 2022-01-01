@@ -28,7 +28,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
 
     struct User {
         uint256 lastUpdateTime;
-        uint256 stakingDurationOnLastUpdate;
+        uint256 stakingDurationOnUpdate;
         uint256 rewardPerTokenPaid;
         uint256 reward;
         uint256 balance;
@@ -66,8 +66,8 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         returns (uint256)
     {
         uint256 _stakingDurationAtUserPeriod = stakingDurationAtUserPeriod(
-                account
-            );
+            account
+        );
         if (_stakingDurationAtUserPeriod == 0) {
             return 0;
         }
@@ -98,8 +98,8 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
     function earned(address account) public view returns (uint256) {
         User memory user = _users[account];
         uint256 _stakingDurationAtUserPeriod = stakingDurationAtUserPeriod(
-                account
-            );
+            account
+        );
         if (_stakingDurationAtUserPeriod == 0) {
             return user.reward;
         }
@@ -163,7 +163,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         return
             (stakingDuration() *
                 (block.timestamp - _sessionStartTime) -
-                user.stakingDurationOnLastUpdate *
+                user.stakingDurationOnUpdate *
                 (user.lastUpdateTime - _sessionStartTime)) /
             (block.timestamp - user.lastUpdateTime);
     }
@@ -221,7 +221,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         User memory user = _users[account];
         averageStakingDuration = stakingDuration();
         _sumOfEntryTimes -= user.lastUpdateTime * user.balance;
-        _users[account].stakingDurationOnLastUpdate = averageStakingDuration;
+        _users[account].stakingDurationOnUpdate = averageStakingDuration;
         _users[account].lastUpdateTime = block.timestamp;
         _;
         _sumOfEntryTimes += block.timestamp * _users[account].balance;
