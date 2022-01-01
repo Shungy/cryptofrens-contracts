@@ -8,10 +8,11 @@ import "./CoreTokens.sol";
 
 /**
  * @dev TERMINOLOGY
- * interaction              : any call made to stake(), withdraw(), or getReward() functions
- * period                   : time between now and last interaction of a user who is staking
- * staking duration         : balance-weighted average of periods of all users
- * average staking duration : time-weighted average of staking durations
+ * interaction      : any call made to stake(), withdraw(), or getReward() functions
+ * period           : time between now and last interaction of a user who is staking
+ * staking duration : balance-weighted average of periods of all users
+ * average staking
+ *        duration  : time-weighted average of staking durations
  */
 contract StakingRewards is ReentrancyGuard, CoreTokens {
     /* ========== STATE VARIABLES ========== */
