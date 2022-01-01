@@ -28,7 +28,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
 
     struct User {
         uint256 lastUpdateTime;
-        uint256 stakingDuration;
+        uint256 stakingDurationOnLastUpdate;
         uint256 rewardPerTokenPaid;
         uint256 reward;
         uint256 balance;
@@ -163,7 +163,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         return
             (stakingDuration() *
                 (block.timestamp - _sessionStartTime) -
-                user.stakingDuration *
+                user.stakingDurationOnLastUpdate *
                 (user.lastUpdateTime - _sessionStartTime)) /
             (block.timestamp - user.lastUpdateTime);
     }
@@ -221,7 +221,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         User memory user = _users[account];
         averageStakingDuration = stakingDuration();
         _sumOfEntryTimes -= user.lastUpdateTime * user.balance;
-        _users[account].stakingDuration = averageStakingDuration;
+        _users[account].stakingDurationOnLastUpdate = averageStakingDuration;
         _users[account].lastUpdateTime = block.timestamp;
         _;
         _sumOfEntryTimes += block.timestamp * _users[account].balance;
