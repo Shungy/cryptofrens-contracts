@@ -41,7 +41,7 @@ contract ERC20StakingRewards is Pausable, StakingRewards {
     function withdraw(uint256 amount)
         public
         nonReentrant
-        updateSessionEndTime
+        updateSessEndTime
         updateStakingDuration(msg.sender)
         updateReward(msg.sender)
     {

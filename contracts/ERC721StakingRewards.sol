@@ -54,7 +54,7 @@ contract ERC721StakingRewards is Pausable, StakingRewards {
     function withdraw(uint256[] memory tokens)
         public
         nonReentrant
-        updateSessionEndTime
+        updateSessEndTime
         updateStakingDuration(msg.sender)
         updateReward(msg.sender)
     {
