@@ -6,6 +6,13 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./CoreTokens.sol";
 
+/**
+ * @dev TERMINOLOGY
+ * interaction              : any call made to stake(), withdraw(), or getReward() functions
+ * period                   : time between now and last interaction of a user who is staking
+ * staking duration         : balance-weighted average of periods of all users
+ * average staking duration : time-weighted average of staking durations
+ */
 contract StakingRewards is ReentrancyGuard, CoreTokens {
     /* ========== STATE VARIABLES ========== */
 
@@ -60,24 +67,27 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         return _users[account].balance;
     }
 
+    /// @param account wallet address of user
+    /// @return per-user reward multiplier multiplied by PRECISION
+    /// @dev this code is duplicate as part of earned() function
     function stakingDurationMultiplier(address account)
         external
         view
         returns (uint256)
     {
-        uint256 _stakingDurationAtUserPeriod = stakingDurationAtUserPeriod(
-            account
-        );
-        if (_stakingDurationAtUserPeriod == 0) {
+        uint256 _averageStakingDurationDuringPeriod = averageStakingDurationDuringPeriod(
+                account
+            );
+        if (_averageStakingDurationDuringPeriod == 0) {
             return 0;
         }
         return
             ((block.timestamp - _users[account].lastUpdateTime) * PRECISION) /
-            _stakingDurationAtUserPeriod;
+            _averageStakingDurationDuringPeriod;
     }
 
     /// @return reward per staked token accumulated since first stake
-    /// @notice refer to README.md for derivation
+    /// @dev refer to README.md for derivation
     function rewardPerToken() public view returns (uint256) {
         if (_totalSupply == 0) {
             return rewardPerTokenStored;
@@ -97,10 +107,10 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
     /// @return amount of reward tokens the account can harvest
     function earned(address account) public view returns (uint256) {
         User memory user = _users[account];
-        uint256 _stakingDurationAtUserPeriod = stakingDurationAtUserPeriod(
-            account
-        );
-        if (_stakingDurationAtUserPeriod == 0) {
+        uint256 _averageStakingDurationDuringPeriod = averageStakingDurationDuringPeriod(
+                account
+            );
+        if (_averageStakingDurationDuringPeriod == 0) {
             return user.reward;
         }
         return
@@ -108,12 +118,12 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
             (((user.balance *
                 (rewardPerToken() - user.rewardPerTokenPaid) *
                 (block.timestamp - user.lastUpdateTime)) /
-                _stakingDurationAtUserPeriod) / PRECISION);
+                _averageStakingDurationDuringPeriod) / PRECISION);
     }
 
     /// @return average staking duration per token
-    /// @notice staking duration of a token resets on interaction
-    /// @notice interaction refers to stake, harvest, and withdraw
+    /// @notice staking duration of a token resets on interaction.
+    /// interaction refers to stake, harvest, and withdraw
     function stakingDuration() public view returns (uint256) {
         if (_totalSupply == 0 || block.timestamp == _sessionStartTime) {
             return 0;
@@ -140,7 +150,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
     /// @param account wallet address of user
     /// @return average staking duration during user has been staking
     /// without interacting with the contract
-    function stakingDurationAtUserPeriod(address account)
+    function averageStakingDurationDuringPeriod(address account)
         public
         view
         returns (uint256)
@@ -154,11 +164,11 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
          * =
          * user.stakingDuration * (user.lastUpdateTime - _sessionStartTime)
          * +
-         * stakingDurationAtUserPeriod
+         * averageStakingDurationDuringPeriod
          * *
          * (block.timestamp - user.lastUpdateTime)
          * =>
-         * stakingDurationAtUserPeriod() =
+         * averageStakingDurationDuringPeriod() =
          */
         return
             (stakingDuration() *
@@ -170,11 +180,11 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
 
     /* ========== MUTATIVE FUNCTIONS ========== */
 
-    /// @notice harvests user’s (message sender) accumulated rewards
-    /// @dev getReward is shared by ERC20StakingRewards and
-    /// ERC721StakingRewards. For stake and withdraw functions refer
-    /// to those contracts as those functions have to be different for
-    /// ERC20 and ERC721.
+    /// @notice harvests accumulated rewards of the user
+    /// @dev getReward() is shared by ERC20StakingRewards.sol and
+    /// ERC721StakingRewards.sol. For stake() and withdraw() functions,
+    /// refer to the respective contracts as those functions have to be
+    /// different for ERC20 and ERC721.
     function getReward()
         public
         nonReentrant
@@ -191,8 +201,13 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
 
     /* ========== RESTRICTED FUNCTIONS ========== */
 
-    /// @param percent percentage of max supply of HAPPY
-    /// eligible to be minted by this contract
+    /// @param percent percentage of max supply of HAPPY eligible to
+    /// be minted by this contract.
+    /// @dev total of all minter contracts’ rewardAllocationMultiplier
+    /// must be 100. Refer to Happy.sol for minter contracts. To avoid
+    /// violoating maxSupply defined in Happy.sol, first change minter
+    /// allocation for the minter you want to reduce emissions for, then
+    /// increase equivalent amount in other minter contracts.
     function changeMinterAllocation(uint256 percent)
         public
         updateReward(address(0))
