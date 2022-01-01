@@ -24,7 +24,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
 
     uint256 private constant PRECISION = 1e10;
     uint256 private constant REWARD_ALLOCATION_DIVISOR = 100;
-    uint256 private constant PSEUDO_REWARD_DURATION = 200 days;
+    uint256 private constant HALF_SUPPLY = 200 days;
 
     struct User {
         uint256 lastUpdateTime;
@@ -60,6 +60,20 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         return _users[account].balance;
     }
 
+    function stakingDurationMultiplier(address account)
+        external
+        view
+        returns (uint256)
+    {
+        uint256 _stakingDurationDuringUserPeriod = stakingDurationDuringUserPeriod(account);
+        if (_stakingDurationDuringUserPeriod == 0) {
+            return 0;
+        }
+        return
+            ((block.timestamp - _users[account].lastUpdateTime) *
+                    PRECISION) / _stakingDurationDuringUserPeriod;
+    }
+
     /// @return reward per staked token accumulated since first stake
     /// @notice refer to README.md for derivation
     function rewardPerToken() public view returns (uint256) {
@@ -74,29 +88,23 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
                 rewardAllocationMultiplier) /
                 REWARD_ALLOCATION_DIVISOR /
                 _totalSupply /
-                (PSEUDO_REWARD_DURATION +
-                    block.timestamp -
-                    _stakelessDuration));
+                (HALF_SUPPLY + block.timestamp - _stakelessDuration));
     }
 
     /// @param account wallet address of user
     /// @return amount of reward tokens the account can harvest
     function earned(address account) public view returns (uint256) {
         User memory user = _users[account];
-        if (_totalSupply == 0) {
+        uint256 _stakingDurationDuringUserPeriod = stakingDurationDuringUserPeriod(account);
+        if (_stakingDurationDuringUserPeriod == 0) {
             return user.reward;
         }
         return
             user.reward +
-            ((user.balance *
+            (((user.balance *
                 (rewardPerToken() - user.rewardPerTokenPaid) *
-                userStakingDuration(account)) /
-                (
-                    lastUpdateTime == block.timestamp
-                        ? averageStakingDuration // on internal
-                        : stakingDuration() // only on external
-                ) /
-                PRECISION);
+                (block.timestamp - user.lastUpdateTime)) /
+                _stakingDurationDuringUserPeriod) / PRECISION);
     }
 
     /// @return average staking duration per token
@@ -111,7 +119,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
          * =
          * averageStakingDuration * (lastUpdateTime - _sessionStartTime)
          * +
-         * (block.timestamp * _totalSupply - _sumOfEntryTimes)
+         * (block.timestamp - _sumOfEntryTimes / _totalSupply)
          * *
          * (block.timestamp - lastUpdateTime)
          * =>
@@ -120,7 +128,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         return
             (averageStakingDuration *
                 (lastUpdateTime - _sessionStartTime) +
-                (block.timestamp * _totalSupply - _sumOfEntryTimes) *
+                (block.timestamp - _sumOfEntryTimes / _totalSupply) *
                 (block.timestamp - lastUpdateTime)) /
             (block.timestamp - _sessionStartTime);
     }
@@ -128,7 +136,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
     /// @param account wallet address of user
     /// @return average staking duration during user has been staking
     /// without interacting with the contract
-    function userStakingDuration(address account)
+    function stakingDurationDuringUserPeriod(address account)
         public
         view
         returns (uint256)
@@ -142,9 +150,9 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
          * =
          * user.stakingDuration * (user.lastUpdateTime - _sessionStartTime)
          * +
-         * userStakingDuration * (block.timestamp - user.lastUpdateTime)
+         * stakingDurationDuringUserPeriod * (block.timestamp - user.lastUpdateTime)
          * =>
-         * userStakingDuration() =
+         * stakingDurationDuringUserPeriod() =
          */
         return
             (stakingDuration() *
