@@ -65,13 +65,15 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         view
         returns (uint256)
     {
-        uint256 _stakingDurationDuringUserPeriod = stakingDurationDuringUserPeriod(account);
-        if (_stakingDurationDuringUserPeriod == 0) {
+        uint256 _stakingDurationAtUserPeriod = stakingDurationAtUserPeriod(
+                account
+            );
+        if (_stakingDurationAtUserPeriod == 0) {
             return 0;
         }
         return
-            ((block.timestamp - _users[account].lastUpdateTime) *
-                    PRECISION) / _stakingDurationDuringUserPeriod;
+            ((block.timestamp - _users[account].lastUpdateTime) * PRECISION) /
+            _stakingDurationAtUserPeriod;
     }
 
     /// @return reward per staked token accumulated since first stake
@@ -95,8 +97,10 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
     /// @return amount of reward tokens the account can harvest
     function earned(address account) public view returns (uint256) {
         User memory user = _users[account];
-        uint256 _stakingDurationDuringUserPeriod = stakingDurationDuringUserPeriod(account);
-        if (_stakingDurationDuringUserPeriod == 0) {
+        uint256 _stakingDurationAtUserPeriod = stakingDurationAtUserPeriod(
+                account
+            );
+        if (_stakingDurationAtUserPeriod == 0) {
             return user.reward;
         }
         return
@@ -104,7 +108,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
             (((user.balance *
                 (rewardPerToken() - user.rewardPerTokenPaid) *
                 (block.timestamp - user.lastUpdateTime)) /
-                _stakingDurationDuringUserPeriod) / PRECISION);
+                _stakingDurationAtUserPeriod) / PRECISION);
     }
 
     /// @return average staking duration per token
@@ -136,7 +140,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
     /// @param account wallet address of user
     /// @return average staking duration during user has been staking
     /// without interacting with the contract
-    function stakingDurationDuringUserPeriod(address account)
+    function stakingDurationAtUserPeriod(address account)
         public
         view
         returns (uint256)
@@ -150,9 +154,11 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
          * =
          * user.stakingDuration * (user.lastUpdateTime - _sessionStartTime)
          * +
-         * stakingDurationDuringUserPeriod * (block.timestamp - user.lastUpdateTime)
+         * stakingDurationAtUserPeriod
+         * *
+         * (block.timestamp - user.lastUpdateTime)
          * =>
-         * stakingDurationDuringUserPeriod() =
+         * stakingDurationAtUserPeriod() =
          */
         return
             (stakingDuration() *
