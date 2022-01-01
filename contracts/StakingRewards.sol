@@ -30,7 +30,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
     uint256 private _sumOfEntryTimes;
 
     uint256 private constant PRECISION = 1e10;
-    uint256 private constant REWARD_ALLOCATION_DIVISOR = 100;
+    uint256 private constant REWARD_ALLOCATION_DIVISOR = 1000;
     uint256 private constant HALF_SUPPLY = 200 days;
 
     struct User {
@@ -201,23 +201,23 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
 
     /* ========== RESTRICTED FUNCTIONS ========== */
 
-    /// @param percent percentage of max supply of HAPPY eligible to
+    /// @param permil per mill of max supply of HAPPY eligible to
     /// be minted by this contract.
     /// @dev total of all minter contracts’ rewardAllocationMultiplier
-    /// must be 100. Refer to Happy.sol for minter contracts. To avoid
+    /// must be 1000. Refer to Happy.sol for minter contracts. To avoid
     /// violoating maxSupply defined in Happy.sol, first change minter
     /// allocation for the minter you want to reduce emissions for, then
     /// increase equivalent amount in other minter contracts.
-    function changeMinterAllocation(uint256 percent)
+    function changeMinterAllocation(uint256 permil)
         public
         updateReward(address(0))
         onlyOwner
     {
         require(
-            percent < 101,
-            "StakingRewards: cant set percent higher than 100"
+            permil < 1001,
+            "StakingRewards: cant set permil higher than 1000"
         );
-        rewardAllocationMultiplier = percent;
+        rewardAllocationMultiplier = permil;
     }
 
     /* ========== MODIFIERS ========== */
