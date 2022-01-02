@@ -8,8 +8,10 @@ import "./CoreTokens.sol";
 
 /**
  * @dev TERMINOLOGY
- * interaction      : any call made to stake(), withdraw(), or getReward() functions
- * period           : time between now and last interaction of a user who is staking
+ * interaction      : execution of stake(), withdraw(), or getReward()
+ * user             : account with a non-zero staking balance
+ * period (of user) : time between now and last interaction of the user
+ * last period      : time between now and last interaction
  * staking duration : balance-weighted average of period of all users
  * average staking
  *        duration  : time-weighted average of staking durations
@@ -20,7 +22,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
 
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
-    uint256 public avgStakingDuration;
+    uint256 public avgStakingDurationOnUpdate;
     uint256 public rewardAllocMul;
 
     uint256 internal _totalSupply;
@@ -31,13 +33,13 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
     uint256 private _sessEndTime;
     uint256 private _sumOfEntryTimes;
 
-    uint256 private constant PRECISION = 1e10;
-    uint256 private constant REWARD_ALLOC_DIVISOR = 1000;
+    uint256 private constant PRECISION = 1e9;
+    uint256 private constant REWARD_ALLOC_DIV = 1000;
     uint256 private constant HALF_SUPPLY = 200 days;
 
     struct User {
         uint256 lastUpdateTime;
-        uint256 stakingDurationOnUpdate;
+        uint256 avgStakingDurationOnUpdate;
         uint256 rewardPerTokenPaid;
         uint256 reward;
         uint256 balance;
@@ -77,8 +79,9 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         view
         returns (uint256)
     {
-        uint256 _avgStakingDurationDuringPeriod =
-            avgStakingDurationDuringPeriod(account);
+        uint256 _avgStakingDurationDuringPeriod = avgStakingDurationDuringPeriod(
+                account
+            );
         if (_avgStakingDurationDuringPeriod == 0) {
             return 0;
         }
@@ -93,63 +96,67 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         if (_totalSupply == 0) {
             return rewardPerTokenStored;
         }
+        uint256 _now = block.timestamp;
+        uint256 mintableSupply = _rewardTokenMaxSupply +
+            rewardToken.burnedSupply();
+        uint256 lastPeriod = _now - lastUpdateTime;
+        uint256 emissionDuration = _now - _stakelessDuration;
         return
             rewardPerTokenStored +
-            (((block.timestamp - lastUpdateTime) *
-                (_rewardTokenMaxSupply + rewardToken.burnedSupply()) *
-                PRECISION *
-                rewardAllocMul) /
-                REWARD_ALLOC_DIVISOR /
+            ((lastPeriod * mintableSupply * PRECISION * rewardAllocMul) /
+                REWARD_ALLOC_DIV /
                 _totalSupply /
-                (HALF_SUPPLY + block.timestamp - _stakelessDuration));
+                (HALF_SUPPLY + emissionDuration));
     }
 
     /// @param account wallet address of user
     /// @return amount of reward tokens the account can harvest
     function earned(address account) public view returns (uint256) {
         User memory user = _users[account];
-        uint256 _avgStakingDurationDuringPeriod =
-            avgStakingDurationDuringPeriod(account);
+        uint256 _avgStakingDurationDuringPeriod = avgStakingDurationDuringPeriod(
+                account
+            );
         if (_avgStakingDurationDuringPeriod == 0) {
             return user.reward;
         }
+        // period also means user’s staking duration
+        uint256 period = block.timestamp - user.lastUpdateTime;
+        uint256 userRewardPerToken = rewardPerToken() - user.rewardPerTokenPaid;
         return
             user.reward +
-            (((user.balance *
-                (rewardPerToken() - user.rewardPerTokenPaid) *
-                (block.timestamp - user.lastUpdateTime)) /
-                _avgStakingDurationDuringPeriod) / PRECISION);
+            ((user.balance * userRewardPerToken * period) /
+                _avgStakingDurationDuringPeriod /
+                PRECISION);
     }
 
-    /// @return average staking duration per token
-    /// @notice staking duration of a token resets on interaction.
-    /// interaction refers to stake, harvest, and withdraw
-    function stakingDuration() public view returns (uint256) {
+    /// @return average staking duration of session
+    function avgStakingDuration() public view returns (uint256) {
         if (_totalSupply == 0 || block.timestamp == _sessStartTime) {
             return 0;
         }
+        uint256 _now = block.timestamp;
+        uint256 stakingDuration = _now - _sumOfEntryTimes / _totalSupply;
+        uint256 lastPeriod = _now - lastUpdateTime;
+        uint256 session = _now - _sessStartTime;
+        uint256 sessionSansLastPeriod = lastUpdateTime - _sessStartTime;
         /*
-         * stakingDuration() * (block.timestamp - _sessStartTime)
+         * avgStakingDuration() * session
          * =
-         * avgStakingDuration * (lastUpdateTime - _sessStartTime)
+         * avgStakingDurationOnUpdate * sessionSansLastPeriod
          * +
-         * (block.timestamp - _sumOfEntryTimes / _totalSupply)
-         * *
-         * (block.timestamp - lastUpdateTime)
+         * stakingDuration * lastPeriod
          * =>
-         * stakingDuration() =
+         * avgStakingDuration() =
          */
         return
-            (avgStakingDuration *
-                (lastUpdateTime - _sessStartTime) +
-                (block.timestamp - _sumOfEntryTimes / _totalSupply) *
-                (block.timestamp - lastUpdateTime)) /
-            (block.timestamp - _sessStartTime);
+            (avgStakingDurationOnUpdate *
+                sessionSansLastPeriod +
+                stakingDuration *
+                lastPeriod) / session;
     }
 
     /// @param account wallet address of user
-    /// @return average staking duration during user has been staking
-    /// without interacting with the contract
+    /// @return average staking duration during period
     function avgStakingDurationDuringPeriod(address account)
         public
         view
@@ -159,23 +166,24 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         if (user.balance == 0 || block.timestamp == user.lastUpdateTime) {
             return 0;
         }
+        uint256 _now = block.timestamp;
+        uint256 session = _now - _sessStartTime;
+        uint256 period = _now - user.lastUpdateTime;
+        uint256 sessionSansPeriod = user.lastUpdateTime - _sessStartTime;
         /*
-         * stakingDuration() * (block.timestamp - _sessStartTime)
+         * avgStakingDuration() * session
          * =
-         * user.stakingDuration * (user.lastUpdateTime - _sessStartTime)
+         * user.avgStakingDurationOnUpdate * sessionSansPeriod
          * +
-         * averageStakingDurationDuringPeriod
-         * *
-         * (block.timestamp - user.lastUpdateTime)
+         * averageStakingDurationDuringPeriod * period
          * =>
          * averageStakingDurationDuringPeriod() =
          */
         return
-            (stakingDuration() *
-                (block.timestamp - _sessStartTime) -
-                user.stakingDurationOnUpdate *
-                (user.lastUpdateTime - _sessStartTime)) /
-            (block.timestamp - user.lastUpdateTime);
+            (avgStakingDuration() *
+                session -
+                user.avgStakingDurationOnUpdate *
+                sessionSansPeriod) / period;
     }
 
     /* ========== MUTATIVE FUNCTIONS ========== */
@@ -234,12 +242,13 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
 
     modifier updateStakingDuration(address account) {
         User memory user = _users[account];
-        avgStakingDuration = stakingDuration();
+        uint256 _now = block.timestamp;
+        avgStakingDurationOnUpdate = avgStakingDuration();
         _sumOfEntryTimes -= user.lastUpdateTime * user.balance;
-        _users[account].stakingDurationOnUpdate = avgStakingDuration;
-        _users[account].lastUpdateTime = block.timestamp;
+        _users[account].avgStakingDurationOnUpdate = avgStakingDurationOnUpdate;
+        _users[account].lastUpdateTime = _now;
         _;
-        _sumOfEntryTimes += block.timestamp * _users[account].balance;
+        _sumOfEntryTimes += _now * _users[account].balance;
     }
 
     modifier updateStakelessDuration() {
