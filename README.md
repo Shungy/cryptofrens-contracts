@@ -31,6 +31,8 @@ always had `>0` total staked supply.
 The reward rate becomes `(max reward token supply) / (200 days+dt)`. Note that max supply is never reached,
 because as `dt` approaches to infinity, `dt / (200 days+dt)` approaches to 1.
 
+![Emission Schedule](images/happy-emission.png)
+
 ### Burn Mechanism
 
 Burned reward tokens are also taken into consideration when calculating the reward rate. This means that as reward tokens
@@ -42,7 +44,7 @@ For the final formula refer to `rewardPerToken` function.
 The burning of the tokens will be incentivized
 with future products. Also Happy contract allows setting a transaction tax, which burns all the tax. Though, initially, no transaction tax will be set.
 
-### Per-User APR Based on Staking Duration
+### Per-User APR Based on User Staking Duration
 
 Happy rewards longer stakers with a higher APR. So every users will have a reward rate multiplier based
 on how long they have been staking. The logic ensures that the average of multipliers will always
@@ -53,9 +55,9 @@ staking and withdrawing. *Staking duration of a staked token of a user* is the t
 These interactions can be staking, withdrawing, or harvesting.
 
 Please refer to the code on how average staking duration and per-user staking duration
-is calculated. See `updateStakingDuration` modifier and `userStakingDuration` and `stakingDuration` functions.
+is calculated. See `updateStakingDuration` modifier and `avgStakingDurationDuringPeriod` and `avgStakingDuration` functions.
 
-In the end `userStakingDuration(account) / stakingDuration()` is used as per-user multiplier. Refer to `earned` function.
+In the end `period / avgStakingDurationDuringPeriod(account)` is used as per-user multiplier. Refer to `earned` function.
 Tests yet to be done to confirm the logic.
 
 ## Commands
