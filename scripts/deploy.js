@@ -58,9 +58,7 @@ async function main() {
   console.log("LP_STAKING_ADDRESS=\"" + stakingRewardsERC20.address + "\"");
 
   // Set minter contracts for happy
-
-  await happy.setPendingMinters([stakingRewardsERC20.address,stakingRewardsERC721.address]);
-  await happy.setMinters();
+  await happy.setMinters(([stakingRewardsERC20.address,stakingRewardsERC721.address]));
 }
 
 // We recommend this pattern to be able to use async/await everywhere

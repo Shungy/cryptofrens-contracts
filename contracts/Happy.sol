@@ -11,21 +11,15 @@ contract Happy is Ownable {
     mapping(address => mapping(address => uint256)) private _allowances;
     mapping(address => bool) private _burnTaxWhitelist;
 
-    uint256 public timelockEnd;
-
     address[] public minters;
-    address[] public pendingMinters;
-
-    uint256 private constant _TIMELOCK = 2 weeks;
 
     uint256 public totalSupply;
     uint256 public burnedSupply;
     uint256 public burnPercent;
-    uint256 public constant maxSupply = 10000000 ether;
 
+    uint256 public constant maxSupply = 10_000_000 ether;
     string public constant name = "Happiness";
     string public constant symbol = "HAPPY";
-
     uint8 public constant decimals = 18;
 
     /* ========== VIEWS ========== */
@@ -97,7 +91,8 @@ contract Happy is Ownable {
     /* ========== RESTRICTED FUNCTIONS ========== */
 
     function mint(address account, uint256 amount) public {
-        bool isMinter = false;
+        // is this efficient? 2-3 minters max will be used
+        bool isMinter;
         for (uint256 i; i < minters.length; i++) {
             if (minters[i] == msg.sender) {
                 isMinter = true;
@@ -121,21 +116,11 @@ contract Happy is Ownable {
         _burnTaxWhitelist[_contract] = isWhitelisted;
     }
 
-    function setPendingMinters(address[] memory _minters) public onlyOwner {
-        pendingMinters = _minters;
-        timelockEnd = block.timestamp + _TIMELOCK;
-        emit PendingMinters(pendingMinters, timelockEnd);
-    }
-
-    function cancelPendingMinters() public onlyOwner clearTimelock {}
-
-    function setMinters() public onlyOwner clearTimelock {
-        require(
-            minters.length == 0 ||
-                (timelockEnd != 0 && block.timestamp >= timelockEnd),
-            "Happy: cannot change minter contracts before timelock end"
-        );
-        minters = pendingMinters;
+    /// @dev this function can be abused by the dev, so Happy should
+    /// be behind a timelock contract managed by governance or multisig
+    function setMinters(address[] memory _minters) public onlyOwner {
+        minters = _minters;
+        emit SetMinters(minters);
     }
 
     /* ========== INTERNAL FUNCTIONS ========== */
@@ -224,13 +209,6 @@ contract Happy is Ownable {
         _;
     }
 
-    modifier clearTimelock() {
-        _;
-        delete pendingMinters;
-        timelockEnd = 0;
-        emit SetMinters(minters);
-    }
-
     /* ========== EVENTS ========== */
 
     event Transfer(address indexed from, address indexed to, uint256 value);
@@ -239,6 +217,5 @@ contract Happy is Ownable {
         address indexed spender,
         uint256 value
     );
-    event PendingMinters(address[] pendingMinters, uint256 timelockEnd);
     event SetMinters(address[] minters);
 }
