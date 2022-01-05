@@ -16,11 +16,16 @@ contract Happy is Ownable {
     uint256 public totalSupply;
     uint256 public burnedSupply;
     uint256 public burnPercent;
+    uint256 public constant maxSupply = 10_000_000_000_000_000_000_000_000;
 
-    uint256 public constant maxSupply = 10_000_000 ether;
+    // standard metadata
+    uint8 public constant decimals = 18;
     string public constant name = "Happiness";
     string public constant symbol = "HAPPY";
-    uint8 public constant decimals = 18;
+
+    // non-standard metadata
+    string public logoURI = "https://cryptofrens.xyz/happy/logo.png";
+    string public externalURI = "https://cryptofrens.xyz/happy";
 
     /* ========== VIEWS ========== */
 
@@ -121,6 +126,15 @@ contract Happy is Ownable {
     function setMinters(address[] memory _minters) public onlyOwner {
         minters = _minters;
         emit SetMinters(minters);
+    }
+
+
+    function changeLogoURI(string memory _logoURI) public onlyOwner {
+        logoURI = _logoURI;
+    }
+
+    function changeExternalURI(string memory _externalURI) public onlyOwner {
+        externalURI = _externalURI;
     }
 
     /* ========== INTERNAL FUNCTIONS ========== */
