@@ -7,6 +7,7 @@ import "./StakingRewards.sol";
 contract ERC721StakingRewards is Pausable, StakingRewards {
     mapping(address => mapping(uint256 => uint256)) private _tokensOf;
     mapping(uint256 => uint256) private _tokensIndex;
+    mapping(uint256 => address) public ownerOf;
 
     constructor(
         address _stakingToken,
@@ -39,7 +40,8 @@ contract ERC721StakingRewards is Pausable, StakingRewards {
             uint256 tokenId = tokens[i];
             uint256 balance = _users[msg.sender].balance;
             _tokensOf[msg.sender][balance] = tokenId;
-            _tokensIndex[tokens[i]] = balance;
+            _tokensIndex[tokenId] = balance;
+            ownerOf[tokenId] = msg.sender;
             _users[msg.sender].balance++;
             IERC721(stakingToken).transferFrom(
                 msg.sender,
@@ -80,6 +82,7 @@ contract ERC721StakingRewards is Pausable, StakingRewards {
             }
             delete _tokensIndex[tokenId];
             delete _tokensOf[msg.sender][lastTokenIndex];
+            delete ownerOf[tokenId];
             _users[msg.sender].balance--;
             IERC721(stakingToken).transferFrom(
                 address(this),

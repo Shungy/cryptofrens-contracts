@@ -16,7 +16,7 @@ contract Happy is Ownable {
     uint256 public totalSupply;
     uint256 public burnedSupply;
     uint256 public burnPercent;
-    uint256 public constant maxSupply = 10_000_000_000_000_000_000_000_000;
+    uint256 public constant maxSupply = 10_000_000e18; // 10M HAPPY
 
     // standard metadata
     uint8 public constant decimals = 18;
