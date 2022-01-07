@@ -54,7 +54,7 @@ contract ERC20StakingRewards is Pausable, StakingRewards {
 
     function exit() external {
         withdraw(_users[msg.sender].balance);
-        getReward();
+        harvest();
     }
 
     event Staked(address indexed user, uint256 amount);
