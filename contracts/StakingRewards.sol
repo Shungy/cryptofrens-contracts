@@ -8,7 +8,7 @@ import "./CoreTokens.sol";
 
 /**
  * @dev TERMINOLOGY
- * interaction      : execution of stake(), withdraw(), or getReward()
+ * interaction      : execution of stake(), withdraw(), or harvest()
  * user             : account with a non-zero staking balance
  * period (of user) : time between now and last interaction of the user
  * last period      : time between now and last interaction
@@ -181,11 +181,11 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
     /* ========== MUTATIVE FUNCTIONS ========== */
 
     /// @notice harvests accumulated rewards of the user
-    /// @dev getReward() is shared by ERC20StakingRewards.sol and
+    /// @dev harvest() is shared by ERC20StakingRewards.sol and
     /// ERC721StakingRewards.sol. For stake() and withdraw() functions,
     /// refer to the respective contracts as those functions have to be
     /// different for ERC20 and ERC721.
-    function getReward()
+    function harvest()
         public
         nonReentrant
         updateStakingDuration(msg.sender)
