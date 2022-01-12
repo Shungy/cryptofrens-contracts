@@ -86,13 +86,14 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         uint256 blockTime = block.timestamp;
         return
             rewardPerTokenStored +
-            (((blockTime - lastUpdateTime) *
+            ((HALF_SUPPLY * (blockTime - lastUpdateTime) *
                 (_rewardTokenMaxSupply + rewardToken.burnedSupply()) *
                 PRECISION *
                 rewardAllocMul) /
                 REWARD_ALLOC_DIV /
                 _totalSupply /
-                (HALF_SUPPLY + blockTime - _stakelessDuration));
+                (HALF_SUPPLY - blockTime - _stakelessDuration) /
+								(HALF_SUPPLY + lastUpdateTime - _stakelessDuration);
     }
 
     /// @param account wallet address of user
@@ -208,7 +209,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
     /// violoating maxSupply defined in Happy.sol, first change minter
     /// allocation for the minter you want to reduce emissions for, then
     /// increase equivalent amount in other minter contracts.
-    function changeMinterAlloc(uint256 percent)
+    function setMinterAllocation(uint256 percent)
         public
         updateReward(address(0))
         onlyOwner
