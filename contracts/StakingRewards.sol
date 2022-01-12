@@ -86,14 +86,15 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         uint256 blockTime = block.timestamp;
         return
             rewardPerTokenStored +
-            ((HALF_SUPPLY * (blockTime - lastUpdateTime) *
+            ((HALF_SUPPLY *
+                (blockTime - lastUpdateTime) *
                 (_rewardTokenMaxSupply + rewardToken.burnedSupply()) *
                 PRECISION *
                 rewardAllocMul) /
                 REWARD_ALLOC_DIV /
                 _totalSupply /
                 (HALF_SUPPLY - blockTime - _stakelessDuration) /
-								(HALF_SUPPLY + lastUpdateTime - _stakelessDuration);
+                (HALF_SUPPLY + lastUpdateTime - _stakelessDuration));
     }
 
     /// @param account wallet address of user
