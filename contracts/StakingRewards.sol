@@ -93,7 +93,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
                 rewardAllocMul) /
                 REWARD_ALLOC_DIV /
                 _totalSupply /
-                (HALF_SUPPLY - blockTime - _stakelessDuration) /
+                (HALF_SUPPLY + blockTime - _stakelessDuration) /
                 (HALF_SUPPLY + lastUpdateTime - _stakelessDuration));
     }
 
