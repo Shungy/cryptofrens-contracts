@@ -10,9 +10,9 @@ import "./CoreTokens.sol";
  * @dev TERMINOLOGY
  * interaction      : execution of stake(), withdraw(), or harvest()
  * user             : account with a non-zero staking balance
- * period (of user) : time between now and last interaction of the user
- * last period      : time between now and last interaction
- * staking duration : balance-weighted average of period of all users
+ * [user] interval  : time between now and last interaction of the user
+ * last interval    : time between now and last interaction
+ * staking duration : balance-weighted average of interval of all users
  * average staking
  *        duration  : time-weighted average of staking durations
  * session (sess)   : time between now and last stake that made stake supply nonzero
@@ -101,16 +101,17 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
     /// @return amount of reward tokens the account can harvest
     function earned(address account) public view returns (uint256) {
         User memory user = _users[account];
-        uint256 periodStakingDuration = avgStakingDurationDuringPeriod(account);
-        if (periodStakingDuration == 0) {
+        uint256 intervalStakingDuration =
+            avgStakingDurationDuringInterval(account);
+        if (intervalStakingDuration == 0) {
             return user.reward;
         }
         /*
          * user’s staking duration =
-         *                (period) = block.timestamp - user.lastUpdateTime.
+         *              (interval) = block.timestamp - user.lastUpdateTime.
          * ---
-         * period (user’s staking duration) divided by “average
-         * staking duration during the period” gives the reward
+         * interval (user’s staking duration) divided by “average
+         * staking duration during the interval” gives the reward
          * multiplier of the user.
          */
         return
@@ -118,7 +119,7 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
             ((user.balance *
                 (rewardPerToken() - user.rewardPerTokenPaid) *
                 (block.timestamp - user.lastUpdateTime)) /
-                periodStakingDuration /
+                intervalStakingDuration /
                 PRECISION);
     }
 
@@ -131,12 +132,12 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         /*
          * IF
          * avgStakingDuration() * session =
-         * avgStakingDurationOnUpdate * sessionSansLastPeriod +
-         * stakingDuration * lastPeriod.
+         * avgStakingDurationOnUpdate * sessionSansLastInterval +
+         * stakingDuration * lastInterval.
          * AND
          * session = blockTime - _sessStartTime,
-         * lastPeriod = blockTime - lastUpdateTime,
-         * sessionSansLastPeriod = lastUpdateTime - _sessStartTime, and
+         * lastInterval = blockTime - lastUpdateTime,
+         * sessionSansLastInterval = lastUpdateTime - _sessStartTime, and
          * stakingDuration = blockTime - _sumOfEntryTimes / _totalSupply.
          * THEN
          * avgStakingDuration() =
@@ -149,8 +150,8 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
     }
 
     /// @param account wallet address of user
-    /// @return average staking duration during period
-    function avgStakingDurationDuringPeriod(address account)
+    /// @return average staking duration during interval
+    function avgStakingDurationDuringInterval(address account)
         public
         view
         returns (uint256)
@@ -163,14 +164,14 @@ contract StakingRewards is ReentrancyGuard, CoreTokens {
         /*
          * IF
          * avgStakingDuration() * session =
-         * user.avgStakingDurationOnUpdate * sessionSansPeriod +
-         * averageStakingDurationDuringPeriod * period.
+         * user.avgStakingDurationOnUpdate * sessionSansInterval +
+         * averageStakingDurationDuringInterval * interval.
          * AND
          * session = blockTime - _sessStartTime,
-         * period = blockTime - user.lastUpdateTime, and
-         * sessionSansPeriod = user.lastUpdateTime - _sessStartTime.
+         * interval = blockTime - user.lastUpdateTime, and
+         * sessionSansInterval = user.lastUpdateTime - _sessStartTime.
          * THEN
-         * averageStakingDurationDuringPeriod() =
+         * averageStakingDurationDuringInterval() =
          */
         return
             (avgStakingDuration() *
