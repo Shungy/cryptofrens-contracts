@@ -136,5 +136,5 @@ contract RewardRegulator is Ownable {
     }
 
     event HalfSupplyChange(uint newHalfSupply);
-    event AllocationChange(address indexed account, uint newAllocations);
+    event AllocationChange(address indexed account, uint newAllocation);
 }
