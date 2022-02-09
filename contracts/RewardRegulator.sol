@@ -118,6 +118,7 @@ contract RewardRegulator is Ownable {
                 minters[account].index = mintersLength;
                 mintersIndex[mintersLength] = account;
             }
+            emit AllocationChange(account, newAlloc);
         }
         // total allocations can only equal 0 or DENOMINATOR
         if (totalAllocChange == int(DENOMINATOR) && initiated == true) {
@@ -132,9 +133,8 @@ contract RewardRegulator is Ownable {
                 "sum of allocation changes must equal zero"
             );
         }
-        emit AllocationsChange(accounts, allocations);
     }
 
     event HalfSupplyChange(uint newHalfSupply);
-    event AllocationsChange(address[] indexed accounts, uint[] allocations);
+    event AllocationChange(address indexed account, uint newAllocations);
 }
