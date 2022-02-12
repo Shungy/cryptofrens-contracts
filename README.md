@@ -4,6 +4,19 @@ HAPPY 🐸 is [an ERC20 token](https://eips.ethereum.org/EIPS/eip-20) with a nov
 
 ## Macrotokenomics
 
+### Reward Allocations
+
+90% of emissions will go to HAPPY-WAVAX PGL (Pangolin Liquidity Token) stakers, and
+10% of emissions will go to CryptoFrens NFT stakers. There is no developer allocation,
+VC allocation, advisor allocation, not treasury allocation. All the emissions will be
+distributed to the community through asset staking. After the sale of all CryptoFren
+NFTs, the NFTs will be backed slightly below their minting price. Then we plan to
+reduce the NFT staking allocation, and increase LP staking allocation. Technically,
+the reward allocations can be changed by the owner. However, off-chain voting methods
+will be utilized to democratize the process.
+
+### Emission Schedule
+
 For `n` seconds `n / (200 days + n)` of the remaining supply is emitted. Remaining
 supply is `maxSupply + burnedSupply - emittedSupply`. Emitted supply is the supply
 that has been marked as mintable up to that point by the minter contract. Not all
@@ -15,14 +28,18 @@ The above curve is the idealized emission schedule. In practice, circulating sup
 will be lagging behind the idealized emission schedule, and the sporadic burning of
 HAPPY will undulate the circulating supply curve.
 
+### Token Burns
+
 The burning of the tokens will be incentivized with future products. Another mechanism
 for burning HAPPY is a transaction tax which burns all the tax. Transaction tax is
 initially set to 0% in the HAPPY token contract.
 
-Governance will be able to change the transaction tax, the maximum supply of HAPPY,
-and the minter contract. The latter two allows tokenomics of HAPPY to be completely
-altered. This will prevent the need to roll up new versions of HAPPY for every
-tokenomic change or for a discovery of an exploit. However, a major change to
+### Governance
+
+On-chain governance will be able to change the transaction tax, the maximum supply
+of HAPPY, and the minter contract. The latter two allows tokenomics of HAPPY to be
+completely altered. This will prevent the need to roll up new versions of HAPPY for
+every tokenomic change or for a discovery of an exploit. However, a major change to
 tokenomics is unlikely for the short term. We will not push for a tokenomic change
 unless an uprecedented growth of HAPPY takes place. And we also pay great attention to
 create an exploit-free protocol.
