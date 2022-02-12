@@ -53,21 +53,9 @@ contract StakingRewards is CoreTokens {
 
     /* ========== VIEWS ========== */
 
-    /// @param posId position id
-    /// @return amount of reward tokens the account earned between its last
-    /// harvest and the contract’s last update (less than its actual rewards as
-    /// it calculates rewards until last update, not until now)
-    function earned(uint posId) public view returns (uint) {
-        Position memory position = positions[posId];
-        // refer to derivation
-        return
-            position.reward +
-            (_sumOfX -
-                position.sumOfX -
-                2 *
-                (position.lastUpdate - _initTime) *
-                (_sumOfY - position.sumOfY)) *
-            position.balance;
+    function getRewardVariables() external view returns (uint, uint) {
+        uint rewards = rewardRegulator.getRewards(address(this));
+        return rewardVariables(rewards);
     }
 
     function userPositions(
@@ -89,6 +77,35 @@ contract StakingRewards is CoreTokens {
         return posIds;
     }
 
+    function pendingRewards(uint posId) external view returns (uint) {
+        uint rewards = rewardRegulator.getRewards(address(this));
+        (uint tempSumOfX, uint tempSumOfY) = rewardVariables(rewards);
+        return earned(posId, tempSumOfX, tempSumOfY);
+    }
+
+    /// @param posId position id
+    /// @return amount of reward tokens the account earned between its last
+    /// harvest and the contract’s last update
+    function earned(uint posId, uint sumOfX, uint sumOfY) private view returns (uint) {
+        require(posId != 0, "posId 0 is reserved for new deposits");
+        Position memory position = positions[posId];
+        if (position.lastUpdate < _initTime) {
+            return position.reward;
+        }
+        return
+            position.reward +
+            (sumOfX -
+                position.sumOfX -
+                2 *
+                (position.lastUpdate - _initTime) *
+                (sumOfY - position.sumOfY)) *
+            position.balance;
+    }
+
+    function stakingDuration() private view returns (uint) {
+        return block.timestamp * totalSupply - _sumOfEntryTimes;
+    }
+
     /* ========== MUTATIVE FUNCTIONS ========== */
 
     /// @notice harvests accumulated rewards of the user
@@ -101,6 +118,7 @@ contract StakingRewards is CoreTokens {
         onlyPositionOwner(posId, msg.sender)
         update(posId)
     {
+        require(posId != 0, "posId 0 is reserved for new deposits");
         uint reward = positions[posId].reward;
         if (reward > 0) {
             positions[posId].reward = 0;
@@ -118,15 +136,6 @@ contract StakingRewards is CoreTokens {
         return posId;
     }
 
-    function stakingDuration() private view returns (uint) {
-        return block.timestamp * totalSupply - _sumOfEntryTimes;
-    }
-
-    function getRewardVariables() external view returns (uint, uint) {
-        uint rewards = rewardRegulator.getRewards(address(this));
-        return rewardVariables(rewards);
-    }
-
     function rewardVariables(uint rewards) private view returns (uint, uint) {
         uint blockTime = block.timestamp;
 
@@ -136,12 +145,19 @@ contract StakingRewards is CoreTokens {
         uint stakeArea = (_prevStakingDuration + stakingDuration()) * interval;
 
         // maximum stakeArea for one staking token
-        uint idealStakeArea = (lastUpdate + blockTime - 2 * _initTime) * interval;
+        uint idealStakeArea = (lastUpdate + blockTime - 2 * _initTime) *
+            interval;
 
         return (
             _sumOfX + (idealStakeArea * rewards) / stakeArea,
             _sumOfY + (rewards * interval) / stakeArea
         );
+    }
+
+    function updatePosition(uint posId) private {
+        positions[posId].sumOfX = _sumOfX;
+        positions[posId].sumOfY = _sumOfY;
+        positions[posId].lastUpdate = block.timestamp;
     }
 
     /* ========== MODIFIERS ========== */
@@ -154,13 +170,13 @@ contract StakingRewards is CoreTokens {
     }
 
     modifier update(uint posId) {
+        uint blockTime = block.timestamp;
         if (posId == 0) {
             posId = positionsLength;
         }
-        Position memory position = positions[posId];
-        uint blockTime = block.timestamp;
 
-        // first staking event
+        Position memory position = positions[posId];
+
         if (lastUpdate == 0) {
             lastUpdate = blockTime;
             _initTime = blockTime;
@@ -170,18 +186,25 @@ contract StakingRewards is CoreTokens {
             uint rewards = rewardRegulator.setRewards();
             (_sumOfX, _sumOfY) = rewardVariables(rewards);
 
-            // user’s rewards (refer to the derivation)
-            positions[posId].reward = earned(posId);
-            positions[posId].sumOfX = _sumOfX;
-            positions[posId].sumOfY = _sumOfY;
+            if (position.lastUpdate != blockTime) {
+                positions[posId].reward = earned(posId, _sumOfX, _sumOfY);
+                updatePosition(posId);
+            }
         }
 
+        // if position.lastUpdate is 0, position.balance also is.
+        // therefore use position.lastUpdate as we do not want block time
         _sumOfEntryTimes -= position.lastUpdate * position.balance;
         _;
+        // must use positions[posId].balance, cuz function might
+        // have changed the balance
         _sumOfEntryTimes += blockTime * positions[posId].balance;
 
+        // if the position values were not initiated, initiate them
+        if (positions[posId].lastUpdate == 0) {
+            updatePosition(posId);
+        }
         lastUpdate = blockTime;
-        positions[posId].lastUpdate = blockTime;
         _prevStakingDuration = stakingDuration();
     }
 

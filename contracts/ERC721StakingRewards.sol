@@ -54,6 +54,7 @@ contract ERC721StakingRewards is Pausable, StakingRewards {
     {
         uint amount = tokens.length;
         require(amount > 0, "cannot withdraw 0");
+        require(posId != 0, "posId 0 is reserved for new deposits");
         for (uint i; i < amount; ++i) {
             // store the last token in the index of the token to delete, and
             // then delete the last slot (swap and pop).

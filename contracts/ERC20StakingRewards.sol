@@ -34,6 +34,7 @@ contract ERC20StakingRewards is Pausable, StakingRewards {
         update(posId)
     {
         require(amount > 0, "cannot withdraw 0");
+        require(posId != 0, "posId 0 is reserved for new deposits");
         totalSupply -= amount;
         positions[posId].balance -= amount; // reverts on overflow
         IERC20(stakingToken).safeTransfer(msg.sender, amount);
