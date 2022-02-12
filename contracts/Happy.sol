@@ -7,16 +7,16 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract Happy is Ownable {
     /* ========== STATE VARIABLES ========== */
 
-    mapping(address => uint256) private _balances;
-    mapping(address => mapping(address => uint256)) private _allowances;
-    mapping(address => bool) private _burnTaxWhitelist;
+    mapping(address => uint) private _balances;
+    mapping(address => mapping(address => uint)) private _allowances;
+    mapping(address => bool) private _whitelist;
 
-    address[] public minters;
-
-    uint256 public totalSupply;
-    uint256 public burnedSupply;
-    uint256 public burnPercent;
-    uint256 public constant maxSupply = 10_000_000e18; // 10M HAPPY
+    uint public totalSupply;
+    uint public burnedSupply;
+    uint public burnPercent;
+    uint public maxSupply = 10_000_000e18; // 10M HAPPY
+    uint private constant DENOMINATOR = 10000;
+    address public minter;
 
     // standard metadata
     uint8 public constant decimals = 18;
@@ -29,30 +29,41 @@ contract Happy is Ownable {
 
     /* ========== VIEWS ========== */
 
-    function balanceOf(address account) public view returns (uint256) {
+    function balanceOf(address account) external view returns (uint) {
         return _balances[account];
     }
 
     function allowance(address owner, address spender)
-        public
+        external
         view
-        returns (uint256)
+        returns (uint)
     {
         return _allowances[owner][spender];
     }
 
+    function whitelisted(address account) external view returns (bool) {
+        return _whitelist[account];
+    }
+
+    function mintableTotal() external view returns (uint) {
+        totalSupply + burnedSupply;
+    }
+
     /* ========== MUTATIVE FUNCTIONS ========== */
 
-    function transfer(address recipient, uint256 amount) public returns (bool) {
+    function transfer(address recipient, uint amount)
+        external
+        returns (bool)
+    {
         _transfer(msg.sender, recipient, amount);
         return true;
     }
 
-    function burn(uint256 amount) public {
+    function burn(uint amount) external {
         _burn(msg.sender, amount);
     }
 
-    function approve(address spender, uint256 amount) public returns (bool) {
+    function approve(address spender, uint amount) external returns (bool) {
         _approve(msg.sender, spender, amount);
         return true;
     }
@@ -60,21 +71,21 @@ contract Happy is Ownable {
     function transferFrom(
         address sender,
         address recipient,
-        uint256 amount
-    ) public setAllowance(sender, msg.sender, amount) returns (bool) {
+        uint amount
+    ) external setAllowance(sender, msg.sender, amount) returns (bool) {
         _transfer(sender, recipient, amount);
         return true;
     }
 
-    function burnFrom(address account, uint256 amount)
-        public
+    function burnFrom(address account, uint amount)
+        external
         setAllowance(account, msg.sender, amount)
     {
         _burn(account, amount);
     }
 
-    function increaseAllowance(address spender, uint256 addedValue)
-        public
+    function increaseAllowance(address spender, uint addedValue)
+        external
         returns (bool)
     {
         _approve(
@@ -85,8 +96,8 @@ contract Happy is Ownable {
         return true;
     }
 
-    function decreaseAllowance(address spender, uint256 subtractedValue)
-        public
+    function decreaseAllowance(address spender, uint subtractedValue)
+        external
         setAllowance(msg.sender, spender, subtractedValue)
         returns (bool)
     {
@@ -95,46 +106,56 @@ contract Happy is Ownable {
 
     /* ========== RESTRICTED FUNCTIONS ========== */
 
-    function mint(address account, uint256 amount) public {
-        // is this efficient? 2-3 minters max will be used
-        bool isMinter;
-        for (uint256 i; i < minters.length; i++) {
-            if (minters[i] == msg.sender) {
-                isMinter = true;
-                break;
-            }
-        }
-        require(isMinter, "Happy: sender is not allowed to mint");
-        assert(maxSupply >= totalSupply + amount);
+    function mint(address account, uint amount) external {
+        require(msg.sender == minter, "Sender is not allowed to mint");
+        require(maxSupply >= totalSupply + amount);
         _mint(account, amount);
     }
 
-    function changeBurnPercent(uint256 _burnPercent) public onlyOwner {
-        require(_burnPercent < 5, "Happy: Cannot set burn percent above 4");
+    // to be set by governance
+    function setBurnPercent(uint _burnPercent) external onlyOwner {
+        require(_burnPercent < 401, "Cannot set burn percent above 4");
         burnPercent = _burnPercent;
     }
 
-    function manageWhitelist(address _contract, bool isWhitelisted)
-        public
+    function manageWhitelist(
+        address[] memory account,
+        bool[] memory isWhitelisted
+    )
+        external
         onlyOwner
     {
-        _burnTaxWhitelist[_contract] = isWhitelisted;
+        uint length = account.length;
+        require(
+            length == isWhitelisted.length,
+            "Both arguments must be of equal length"
+        );
+        for(uint i; i < length; ++i) {
+            _whitelist[account[i]] = isWhitelisted[i];
+            emit Whitelist(account[i], isWhitelisted[i]);
+        }
     }
 
-    /// @dev this function can be abused by the dev, so Happy should
-    /// be behind a timelock contract managed by governance or multisig
-    function setMinters(address[] memory _minters) public onlyOwner {
-        minters = _minters;
-        emit SetMinters(minters);
+    // owner should be timelock to prevent the abuse of this function
+    function setMinter(address _minter) external onlyOwner {
+        minter = _minter;
+        emit NewMinter(minter);
     }
 
-
-    function changeLogoURI(string memory _logoURI) public onlyOwner {
+    function setLogoURI(string memory _logoURI) external onlyOwner {
         logoURI = _logoURI;
     }
 
-    function changeExternalURI(string memory _externalURI) public onlyOwner {
+    function setExternalURI(string memory _externalURI) external onlyOwner {
         externalURI = _externalURI;
+    }
+
+    function setMaxSupply(uint _maxSupply) external onlyOwner {
+        require(
+            _maxSupply >= totalSupply,
+            "Cannot set max supply less than current supply"
+        );
+        maxSupply = _maxSupply;
     }
 
     /* ========== INTERNAL FUNCTIONS ========== */
@@ -142,20 +163,21 @@ contract Happy is Ownable {
     function _transfer(
         address sender,
         address recipient,
-        uint256 amount
-    ) internal {
+        uint amount
+    ) private {
         require(sender != address(0), "ERC20: transfer from the zero address");
         require(recipient != address(0), "ERC20: transfer to the zero address");
         if (
             burnPercent > 0 &&
-            _isContract(recipient) &&
-            !_burnTaxWhitelist[recipient]
+            !_whitelist[recipient] && // e.g., amm router
+            _isContract(recipient) // i.e., tax is for selling, not transferring
+                                   // impossible to distinguish sell vs add LP
         ) {
-            uint256 burnAmount = (amount * burnPercent) / 100;
+            uint burnAmount = amount * burnPercent / DENOMINATOR;
             _burn(sender, burnAmount);
             amount -= burnAmount;
         }
-        uint256 senderBalance = _balances[sender];
+        uint senderBalance = _balances[sender];
         require(
             senderBalance >= amount,
             "ERC20: transfer amount exceeds balance"
@@ -167,16 +189,16 @@ contract Happy is Ownable {
         emit Transfer(sender, recipient, amount);
     }
 
-    function _mint(address account, uint256 amount) internal {
+    function _mint(address account, uint amount) private {
         require(account != address(0), "ERC20: mint to the zero address");
         totalSupply += amount;
         _balances[account] += amount;
         emit Transfer(address(0), account, amount);
     }
 
-    function _burn(address account, uint256 amount) internal {
+    function _burn(address account, uint amount) private {
         require(account != address(0), "ERC20: burn from the zero address");
-        uint256 accountBalance = _balances[account];
+        uint accountBalance = _balances[account];
         require(accountBalance >= amount, "ERC20: burn amount exceeds balance");
         unchecked {
             _balances[account] = accountBalance - amount;
@@ -189,16 +211,16 @@ contract Happy is Ownable {
     function _approve(
         address owner,
         address spender,
-        uint256 amount
-    ) internal {
+        uint amount
+    ) private {
         require(owner != address(0), "ERC20: approve from the zero address");
         require(spender != address(0), "ERC20: approve to the zero address");
         _allowances[owner][spender] = amount;
         emit Approval(owner, spender, amount);
     }
 
-    function _isContract(address account) internal view returns (bool) {
-        uint256 size;
+    function _isContract(address account) private view returns (bool) {
+        uint size;
         assembly {
             size := extcodesize(account)
         }
@@ -208,28 +230,25 @@ contract Happy is Ownable {
     /* ========== MODIFIERS ========== */
 
     modifier setAllowance(
-        address account,
-        address sender,
-        uint256 amount
+        address owner,
+        address spender,
+        uint amount
     ) {
-        uint256 currentAllowance = allowance(account, sender);
+        uint currentAllowance = _allowances[owner][spender];
         require(
             currentAllowance >= amount,
             "ERC20: spend amount exceeds allowance"
         );
         unchecked {
-            _approve(account, sender, currentAllowance - amount);
+            _approve(owner, spender, currentAllowance - amount);
         }
         _;
     }
 
     /* ========== EVENTS ========== */
 
-    event Transfer(address indexed from, address indexed to, uint256 value);
-    event Approval(
-        address indexed owner,
-        address indexed spender,
-        uint256 value
-    );
-    event SetMinters(address[] minters);
+    event Transfer(address indexed from, address indexed to, uint value);
+    event Approval(address indexed owner, address indexed spender, uint value);
+    event NewMinter(address minter);
+    event Whitelist(address indexed account, bool whitelisted);
 }

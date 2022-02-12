@@ -45,20 +45,24 @@ contract RewardRegulator is Ownable {
         HAPPY = IHappy(rewardToken);
     }
 
-    function setRewards() external returns (uint) {
-        address sender = msg.sender;
+    function getRewards(address account) public view returns (uint) {
         uint blockTime = block.timestamp;
-        Minter memory minter = minters[sender];
+        Minter memory minter = minters[account];
         uint interval = blockTime - minter.lastUpdate;
         if (interval == 0 || minter.allocation == 0) {
             return 0;
         }
-        uint rewards = (interval *
+        return (interval *
             (HAPPY.mintableTotal() - totalEmitted) *
             minter.allocation) /
             DENOMINATOR /
             (halfSupply + interval);
-        minters[sender].lastUpdate = blockTime;
+    }
+
+    function setRewards() external returns (uint) {
+        address sender = msg.sender;
+        uint rewards = getRewards(sender);
+        minters[sender].lastUpdate = block.timestamp;
         minters[sender].unminted += rewards;
         totalEmitted += rewards;
         return rewards;

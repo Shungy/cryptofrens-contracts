@@ -5,18 +5,14 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/IERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "./IHappy.sol";
 
 contract CoreTokens is Ownable {
-    using SafeERC20 for IHappy;
     using SafeERC20 for IERC20;
 
     address public stakingToken;
-    IHappy public rewardToken;
 
-    constructor(address _stakingToken, address _rewardToken) {
+    constructor(address _stakingToken) {
         stakingToken = _stakingToken;
-        rewardToken = IHappy(_rewardToken);
     }
 
     function recoverERC20(address tokenAddress, uint256 tokenAmount)

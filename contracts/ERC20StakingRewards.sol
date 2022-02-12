@@ -7,29 +7,14 @@ import "./StakingRewards.sol";
 contract ERC20StakingRewards is Pausable, StakingRewards {
     using SafeERC20 for IERC20;
 
-    constructor(
-        address _stakingToken,
-        address _rewardToken,
-        uint256 _rewardMultiplier
-    )
-        StakingRewards(
-            _stakingToken,
-            _rewardToken,
-            _rewardMultiplier
-        )
+    constructor(address _stakingToken, address _rewardRegulator)
+        StakingRewards(_stakingToken, _rewardRegulator)
     {}
 
-    function stake(uint256 amount)
-        external
-        nonReentrant
-        whenNotPaused
-        updateStakelessDuration
-        updateStakingDuration(msg.sender)
-        updateReward(msg.sender)
-    {
+    function stake(uint amount) external whenNotPaused update(msg.sender) {
         require(amount > 0, "ERC20StakingRewards: cannot stake 0");
-        _totalSupply += amount;
-        _users[msg.sender].balance += amount;
+        totalSupply += amount;
+        users[msg.sender].balance += amount;
         IERC20(stakingToken).safeTransferFrom(
             msg.sender,
             address(this),
@@ -38,25 +23,19 @@ contract ERC20StakingRewards is Pausable, StakingRewards {
         emit Staked(msg.sender, amount);
     }
 
-    function withdraw(uint256 amount)
-        public
-        nonReentrant
-        updateSessEndTime
-        updateStakingDuration(msg.sender)
-        updateReward(msg.sender)
-    {
+    function withdraw(uint amount) public update(msg.sender) {
         require(amount > 0, "ERC20StakingRewards: cannot withdraw 0");
-        _totalSupply -= amount;
-        _users[msg.sender].balance -= amount;
+        totalSupply -= amount;
+        users[msg.sender].balance -= amount;
         IERC20(stakingToken).safeTransfer(msg.sender, amount);
         emit Withdrawn(msg.sender, amount);
     }
 
     function exit() external {
-        withdraw(_users[msg.sender].balance);
+        withdraw(users[msg.sender].balance);
         harvest();
     }
 
-    event Staked(address indexed user, uint256 amount);
-    event Withdrawn(address indexed user, uint256 amount);
+    event Staked(address indexed user, uint amount);
+    event Withdrawn(address indexed user, uint amount);
 }
