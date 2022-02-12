@@ -32,6 +32,7 @@ contract StakingRewards is CoreTokens {
     struct Position {
         uint balance;
         uint reward;
+        uint rewardDebt;
         uint lastUpdate;
         uint sumOfX;
         uint sumOfY;
@@ -119,20 +120,56 @@ contract StakingRewards is CoreTokens {
         update(posId)
     {
         require(posId != 0, "posId 0 is reserved for new deposits");
-        uint reward = positions[posId].reward;
+        Position memory position = positions[posId];
+        uint reward = position.reward - position.rewardDebt;
         if (reward > 0) {
             positions[posId].reward = 0;
+            positions[posId].rewardDebt = 0;
             rewardRegulator.mint(msg.sender, reward);
             emit RewardPaid(msg.sender, reward);
         }
     }
 
-    function createPosition(address owner) internal returns (uint) {
+    /*
+
+    // special harvest method that does not reset APR
+    function harvestAndStake(uint posId) public onlyPositionOwner(posId, msg.sender) {
+        require(posId != 0, "posId 0 is reserved for new deposits");
+        uint blockTime = block.timestamp;
+
+        Position memory position = positions[posId];
+
+        if (position.lastUpdate != blockTime) {
+            if (lastUpdate != blockTime) {
+                uint rewards = rewardRegulator.setRewards();
+                (_sumOfX, _sumOfY) = rewardVariables(rewards);
+            }
+            uint reward = earned(posId, _sumOfX, _sumOfY);
+            // we will not update the position so we must record reward as debt
+            positions[posId].rewardDebt = reward;
+
+            // mint HAPPY to this contract
+            // request AVAX from sender or have spending approval of WAVAX
+            // send
+        }
+
+        _;
+
+        lastUpdate = blockTime;
+        _prevStakingDuration = stakingDuration();
+    }
+
+    */
+
+    function createPosition(address owner, uint parentPosId) internal returns (uint) {
         uint posId = positionsLength;
         positions[posId].owner = owner;
         positionsLength++;
         userPositionsIndex[owner][userPositionsLengths[owner]] = posId;
         userPositionsLengths[owner]++;
+        if (parentPosId != 0) {
+            positions[posId].parentPosId = parentPosId;
+        }
         return posId;
     }
 
@@ -182,14 +219,13 @@ contract StakingRewards is CoreTokens {
             _initTime = blockTime;
         }
 
-        if (lastUpdate != blockTime) {
-            uint rewards = rewardRegulator.setRewards();
-            (_sumOfX, _sumOfY) = rewardVariables(rewards);
-
-            if (position.lastUpdate != blockTime) {
-                positions[posId].reward = earned(posId, _sumOfX, _sumOfY);
-                updatePosition(posId);
+        if (position.lastUpdate != blockTime) {
+            if (lastUpdate != blockTime) {
+                uint rewards = rewardRegulator.setRewards();
+                (_sumOfX, _sumOfY) = rewardVariables(rewards);
             }
+            positions[posId].reward = earned(posId, _sumOfX, _sumOfY);
+            updatePosition(posId);
         }
 
         // if position.lastUpdate is 0, position.balance also is.

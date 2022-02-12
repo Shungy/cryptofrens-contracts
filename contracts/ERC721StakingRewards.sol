@@ -32,7 +32,7 @@ contract ERC721StakingRewards is Pausable, StakingRewards {
         address sender = msg.sender;
         require(to != address(0), "cannot stake to zero address");
         if (posId == 0) {
-            posId = createPosition(to);
+            posId = createPosition(to, 0);
         }
         for (uint i; i < amount; ++i) {
             uint tokenId = tokens[i];

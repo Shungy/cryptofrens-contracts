@@ -20,7 +20,7 @@ contract ERC20StakingRewards is Pausable, StakingRewards {
         address sender = msg.sender;
         require(to != address(0), "cannot stake to zero address");
         if (posId == 0) {
-            posId = createPosition(to);
+            posId = createPosition(to, 0);
         }
         totalSupply += amount;
         positions[posId].balance += amount;
