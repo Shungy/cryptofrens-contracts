@@ -9,6 +9,8 @@ import "./CoreTokens.sol";
 interface IRewardRegulator {
     function setRewards() external returns (uint);
 
+    function getRewards(address account) external view returns (uint);
+
     function mint(address to, uint amount) external;
 }
 
@@ -24,15 +26,15 @@ contract StakingRewards is CoreTokens {
     uint private _initTime;
     uint private _prevStakingDuration;
     uint private _sumOfEntryTimes;
-    uint private _sumOfAdjustedRewards;
-    uint private _sumOfRewardWidthPerAreas;
+    uint private _sumOfX;
+    uint private _sumOfY;
 
     struct Position {
         uint balance;
         uint reward;
         uint lastUpdate;
-        uint sumOfAdjustedRewards;
-        uint sumOfRewardWidthPerAreas;
+        uint sumOfX;
+        uint sumOfY;
         uint parentPosId;
         address owner;
     }
@@ -60,12 +62,11 @@ contract StakingRewards is CoreTokens {
         // refer to derivation
         return
             position.reward +
-            (_sumOfAdjustedRewards -
-                position.sumOfAdjustedRewards -
+            (_sumOfX -
+                position.sumOfX -
                 2 *
                 (position.lastUpdate - _initTime) *
-                (_sumOfRewardWidthPerAreas -
-                    position.sumOfRewardWidthPerAreas)) *
+                (_sumOfY - position.sumOfY)) *
             position.balance;
     }
 
@@ -117,6 +118,32 @@ contract StakingRewards is CoreTokens {
         return posId;
     }
 
+    function stakingDuration() private view returns (uint) {
+        return block.timestamp * totalSupply - _sumOfEntryTimes;
+    }
+
+    function getRewardVariables() external view returns (uint, uint) {
+        uint rewards = rewardRegulator.getRewards(address(this));
+        return rewardVariables(rewards);
+    }
+
+    function rewardVariables(uint rewards) private view returns (uint, uint) {
+        uint blockTime = block.timestamp;
+
+        uint interval = blockTime - lastUpdate;
+
+        // 2x the area of the trapezoid formed under the stakingDuration line
+        uint stakeArea = (_prevStakingDuration + stakingDuration()) * interval;
+
+        // maximum stakeArea for one staking token
+        uint idealStakeArea = (lastUpdate + blockTime - 2 * _initTime) * interval;
+
+        return (
+            _sumOfX + (idealStakeArea * rewards) / stakeArea,
+            _sumOfY + (rewards * interval) / stakeArea
+        );
+    }
+
     /* ========== MODIFIERS ========== */
 
     modifier onlyPositionOwner(uint posId, address sender) {
@@ -137,41 +164,23 @@ contract StakingRewards is CoreTokens {
             _initTime = blockTime;
         }
 
-        // nothing here will make sense without knowing the derivations
         if (lastUpdate != blockTime) {
-            uint interval = blockTime - lastUpdate;
-
-            uint stakingDuration = blockTime * totalSupply - _sumOfEntryTimes;
-            // 2x the area of the trapezoid formed under the stakingDuration line
-            uint stakeArea = (_prevStakingDuration + stakingDuration) *
-                interval;
-            _prevStakingDuration = stakingDuration;
-
-            // rewards this contract is eligible since the last call
             uint rewards = rewardRegulator.setRewards();
-
-            // maximum stakeArea for one staking token
-            uint idealStakeArea = (lastUpdate + blockTime - 2 * _initTime) *
-                interval;
-
-            // variable names do not mean anything sensible
-            _sumOfAdjustedRewards += (idealStakeArea * rewards) / stakeArea;
-            _sumOfRewardWidthPerAreas += (rewards * interval) / stakeArea;
-
-            lastUpdate = blockTime;
+            (_sumOfX, _sumOfY) = rewardVariables(rewards);
 
             // user’s rewards (refer to the derivation)
             positions[posId].reward = earned(posId);
-            positions[posId].sumOfAdjustedRewards = _sumOfAdjustedRewards;
-            positions[posId]
-                .sumOfRewardWidthPerAreas = _sumOfRewardWidthPerAreas;
+            positions[posId].sumOfX = _sumOfX;
+            positions[posId].sumOfY = _sumOfY;
         }
-
-        positions[posId].lastUpdate = blockTime;
 
         _sumOfEntryTimes -= position.lastUpdate * position.balance;
         _;
-        _sumOfEntryTimes += blockTime * positions[posId].balance; // dont use position.balance here
+        _sumOfEntryTimes += blockTime * positions[posId].balance;
+
+        lastUpdate = blockTime;
+        positions[posId].lastUpdate = blockTime;
+        _prevStakingDuration = stakingDuration();
     }
 
     /* ========== EVENTS ========== */

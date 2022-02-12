@@ -24,7 +24,11 @@ contract ERC20StakingRewards is Pausable, StakingRewards {
         emit Staked(msg.sender, amount);
     }
 
-    function withdraw(uint amount, uint posId) public onlyPositionOwner(posId, msg.sender) update(posId) {
+    function withdraw(uint amount, uint posId)
+        public
+        onlyPositionOwner(posId, msg.sender)
+        update(posId)
+    {
         require(amount > 0, "cannot withdraw 0");
         totalSupply -= amount;
         positions[posId].balance -= amount; // reverts on overflow
