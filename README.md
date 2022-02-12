@@ -1,72 +1,83 @@
 # Happy
 
-HAPPY is an ERC20 token with a novel staking algorithm with per-user APR.
+HAPPY 🐸 is [an ERC20 token](https://eips.ethereum.org/EIPS/eip-20) with a novel staking algorithm.
 
-## Core Logic
+## Macrotokenomics
 
-### Rewards Storage
+For `n` seconds `n / (200 days + n)` of the remaining supply is emitted. Remaining
+supply is `maxSupply + burnedSupply - emittedSupply`. Emitted supply is the supply
+that has been marked as mintable up to that point by the minter contract. Not all
+`emittedSupply` has to be minted at that point. `maxSupply` will be set to 10 million.
 
-This logic comes from [Synthetix’s StakingRewards contract](https://github.com/Synthetixio/synthetix/blob/v2.54.0/contracts/StakingRewards.sol).
-It stores the amount of reward tokens per staking
-token that could have been issued to date, and keeps track of user’s
-stored reward tokens (unharvested tokens). When
-calculating user’s stored reward tokens, it takes the ratio of user's staked tokens to total staked tokens.
+![Emission Schedule](images/happy-emission.png "Ideal emission schedule")
 
-In its core this mechanism, reward rate is constant and calcuated as `(remaining reward token supply) / (remaining time for emissions)` during
-the funding of the contract. And for each user, reward rate is multiplied by user’s staked proportion. However, user’s staked proportion changes
-as people stake and withdraw. This is taken into consideration by change in rewardPerTokenStored since user’s last harvest.
+The above curve is the idealized emission schedule. In practice, circulating supply
+will be lagging behind the idealized emission schedule, and the sporadic burning of
+HAPPY will undulate the circulating supply curve.
 
-HAPPY has some differences to this basic model.
+The burning of the tokens will be incentivized with future products. Another mechanism
+for burning HAPPY is a transaction tax which burns all the tax. Transaction tax is
+initially set to 0% in the HAPPY token contract.
 
-### Emission Decay
+Governance will be able to change the transaction tax, the maximum supply of HAPPY,
+and the minter contract. The latter two allows tokenomics of HAPPY to be completely
+altered. This will prevent the need to roll up new versions of HAPPY for every
+tokenomic change or for a discovery of an exploit. However, a major change to
+tokenomics is unlikely for the short term. We will not push for a tokenomic change
+unless an uprecedented growth of HAPPY takes place. And we also pay great attention to
+create an exploit-free protocol.
 
-While Synthetix’s staking contract has constant emission (e.g. 1 reward token per second), Happy uses
-a decay function to ensure limited supply with perpetual emissions. This also benefits
-early users as the reward rate decreases over time.
+## Microtokenomics
 
-The emissions with decay is calculated as `dt/(200 days+dt)`, where `200 days` is an arbitrary duration during which
-the half of tokens will be emitted, and `dt` is the time passed since the initial staking, given the contract
-always had `>0` total staked supply.
+Most of the current staking algorithms are all derived from [Synthetix’ implementation](https://github.com/Synthetixio/synthetix/blob/v2.54.0/contracts/StakingRewards.sol).
+This implementation simply distributes the rewards proportional to the stake amount of
+an account. To encourage sticky liquidity, many protocols have implemented *ad hoc*
+“solutions” such as “paper-hand fees”, which seizes portion of user’s tokens if it is
+withdrawn earlier than an arbitrary duration. We have seen that such solutions do not
+work, and often only benefit to the developers’ pockets. In contrast, HAPPY is built
+from ground up to provide a novel model to elegantly encourage long-term staking and
+discourage withdrawing or selling harvests.
 
-The reward rate becomes `(max reward token supply) / (200 days+dt)`. Note that max supply is never reached,
-because as `dt` approaches to infinity, `dt / (200 days+dt)` approaches to 1.
+### Reward Rate Based on Staking Duration
 
-![Emission Schedule](images/happy-emission.png)
+HAPPY staking model considers both the stake amount and the *staking duration* when
+calculating the user’s share of rewards. At each withdraw, deposit, or harvest events,
+the staking duration of the user resets to zero. The deviation of the user’s staking
+duration from the average staking duration is factored into the calculation of the
+reward rate of the user. However, simple staking duration averaging calculations on
+top of Synthetix’ model cannot account for the changes in both the reward rate and
+the average staking duration while the user has been staking. Therefore, a novel
+staking model had to be invented. The HAPPY algorithm can handle arbitrary changes
+in the global reward rate, and it ensures that the sum of users’ rewards for a given
+duration will always equal to the total allocated rewards for that duration.
 
-### Burn Mechanism
+### Multiple Deposits with Position-Based Account Tracking
 
-Burned reward tokens are also taken into consideration when calculating the reward rate. This means that as reward tokens
-are burned and total supply decreases, the emission rate will increase. In the formula the total supply is implicit in `dt` and burned supply.
+We had mentioned that the staking duration resets on withdraw, deposit, or harvest.
+However, depositing is a positive event for the farm’s health. Therefore, it should
+not be discouraged by resetting the staking duration of an existing user. To prevent
+this, staking duration, balance, and rewards are tracked as positions instead of
+users. This way, a user can have infinite positions which hold different balances at
+different staking durations. The default deposit event opens a new position for the
+user instead of resetting an existing position. This prevents the need to use multiple
+wallet addresses to increase one’s stake without resetting the staking duration.
 
-With this addition the reward rate becomes `((max reward token supply + burned supply) / (200 days+dt))`.
-For the final formula refer to `rewardPerToken` function.
+### Locked-Deposit Harvesting
 
-The burning of the tokens will be incentivized
-with future products. Also Happy contract allows setting a transaction tax, which burns all the tax. Though, initially, no transaction tax will be set.
+Harvesting can be a desirable or an undesirable event for the farm’s health. If the
+user sells the rewards, that would be undesirable. If the user adds more liquidity
+with the rewards, that would be desirable. However, there is no way to know beforehand
+how the user will spend those rewards. Therefore, the staking duration for the
+position is reset to zero whenever the rewards are harvested. An alternative way
+to harvest the rewards in a way that is beneficial to the farm is *locked-deposit harvesting*.
+In this method, rewards never leave the contract. Instead, the user has
+to transfer equivalent pair tokens to the staking contract. The staking contract then
+pairs the two tokens and creates a new position with the pool tokens. The new position
+is considered the child of the position from which the rewards were harvested. When
+a position has a parent, its stake cannot be withdrawn until the parent position’s
+staking duration is reset at least once after the creation of the child position. This
+feature is only available in LP staking, where the reward token is one of the tokens
+in the LP pair.
 
-### Per-User APR Based on User Staking Duration
-
-Happy rewards longer stakers with a higher APR. So every users will have a reward rate multiplier based
-on how long they have been staking. The logic ensures that the average of multipliers will always
-equal to `1`, such that emission schedule described in previous paragraphs will continue to hold true.
-
-Note that “staking duration” mentioned here has a nuance, and it is not simply the duration between
-staking and withdrawing. *Staking duration of a staked token of a user* is the time between the two contract interactions by that user.
-These interactions can be staking, withdrawing, or harvesting.
-
-Please refer to the code on how average staking duration and per-user staking duration
-is calculated. See `updateStakingDuration` modifier and `avgStakingDurationDuringPeriod` and `avgStakingDuration` functions.
-
-In the end `period / avgStakingDurationDuringPeriod(account)` is used as per-user multiplier. Refer to `earned` function.
-Tests yet to be done to confirm the logic.
-
-## Commands
-
-Refer to `scripts/deploy.js` to see how all the contracts fit together.
-
-```shell
-npx hardhat node
-yarn compile
-yarn deploy
-yarn test
-```
+With these features, we believe that HAPPY has what it takes to become the greatest
+ponzi scheme ever by replacing the Federal Reserve 🤡
