@@ -33,10 +33,13 @@ contract StakingRewards is CoreTokens {
         uint lastUpdate;
         uint sumOfAdjustedRewards;
         uint sumOfRewardWidthPerAreas;
+        uint parentPosId;
         address owner;
     }
 
     mapping(uint => Position) public positions;
+    mapping(address => uint) public userPositionsLengths;
+    mapping(address => mapping(uint => uint)) private userPositionsIndex;
 
     /* ========== CONSTRUCTOR ========== */
 
@@ -61,8 +64,28 @@ contract StakingRewards is CoreTokens {
                 position.sumOfAdjustedRewards -
                 2 *
                 (position.lastUpdate - _initTime) *
-                (_sumOfRewardWidthPerAreas - position.sumOfRewardWidthPerAreas)) *
+                (_sumOfRewardWidthPerAreas -
+                    position.sumOfRewardWidthPerAreas)) *
             position.balance;
+    }
+
+    function userPositions(
+        address owner,
+        uint indexFrom,
+        uint indexTo
+    ) external view returns (uint[] memory) {
+        if (indexTo >= userPositionsLengths[owner]) {
+            indexTo = userPositionsLengths[owner] - 1;
+        }
+        require(indexTo >= indexFrom, "invalid index bounds");
+        uint[] memory posIds;
+        uint i;
+        while (indexTo >= indexFrom) {
+            posIds[i] = userPositionsIndex[owner][indexTo];
+            indexTo++;
+            i++;
+        }
+        return posIds;
     }
 
     /* ========== MUTATIVE FUNCTIONS ========== */
@@ -72,7 +95,11 @@ contract StakingRewards is CoreTokens {
     /// ERC721StakingRewards.sol. For stake() and withdraw() functions,
     /// refer to the respective contracts as those functions have to be
     /// different for ERC20 and ERC721.
-    function harvest(uint posId) public onlyPositionOwner(posId, msg.sender) update(posId) {
+    function harvest(uint posId)
+        public
+        onlyPositionOwner(posId, msg.sender)
+        update(posId)
+    {
         uint reward = positions[posId].reward;
         if (reward > 0) {
             positions[posId].reward = 0;
@@ -81,10 +108,12 @@ contract StakingRewards is CoreTokens {
         }
     }
 
-    function createPosition(address owner) internal returns(uint) {
+    function createPosition(address owner) internal returns (uint) {
         uint posId = positionsLength;
         positions[posId].owner = owner;
         positionsLength++;
+        userPositionsIndex[owner][userPositionsLengths[owner]] = posId;
+        userPositionsLengths[owner]++;
         return posId;
     }
 
@@ -134,7 +163,8 @@ contract StakingRewards is CoreTokens {
             // user’s rewards (refer to the derivation)
             positions[posId].reward = earned(posId);
             positions[posId].sumOfAdjustedRewards = _sumOfAdjustedRewards;
-            positions[posId].sumOfRewardWidthPerAreas = _sumOfRewardWidthPerAreas;
+            positions[posId]
+                .sumOfRewardWidthPerAreas = _sumOfRewardWidthPerAreas;
         }
 
         positions[posId].lastUpdate = blockTime;
