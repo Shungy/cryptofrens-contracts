@@ -19,6 +19,7 @@ contract StakingRewards is CoreTokens {
 
     uint public lastUpdate;
     uint public totalSupply;
+    uint public positionsLength = 1; // 0 is reserved
 
     uint private _initTime;
     uint private _prevStakingDuration;
@@ -26,15 +27,16 @@ contract StakingRewards is CoreTokens {
     uint private _sumOfAdjustedRewards;
     uint private _sumOfRewardWidthPerAreas;
 
-    struct User {
+    struct Position {
         uint balance;
         uint reward;
         uint lastUpdate;
         uint sumOfAdjustedRewards;
         uint sumOfRewardWidthPerAreas;
+        address owner;
     }
 
-    mapping(address => User) public users;
+    mapping(uint => Position) public positions;
 
     /* ========== CONSTRUCTOR ========== */
 
@@ -46,21 +48,21 @@ contract StakingRewards is CoreTokens {
 
     /* ========== VIEWS ========== */
 
-    /// @param account wallet address of user
+    /// @param posId position id
     /// @return amount of reward tokens the account earned between its last
     /// harvest and the contract’s last update (less than its actual rewards as
     /// it calculates rewards until last update, not until now)
-    function earned(address account) public view returns (uint) {
-        User memory user = users[account];
+    function earned(uint posId) public view returns (uint) {
+        Position memory position = positions[posId];
         // refer to derivation
         return
-            user.reward +
+            position.reward +
             (_sumOfAdjustedRewards -
-                user.sumOfAdjustedRewards -
+                position.sumOfAdjustedRewards -
                 2 *
-                (user.lastUpdate - _initTime) *
-                (_sumOfRewardWidthPerAreas - user.sumOfRewardWidthPerAreas)) *
-            user.balance;
+                (position.lastUpdate - _initTime) *
+                (_sumOfRewardWidthPerAreas - position.sumOfRewardWidthPerAreas)) *
+            position.balance;
     }
 
     /* ========== MUTATIVE FUNCTIONS ========== */
@@ -70,19 +72,34 @@ contract StakingRewards is CoreTokens {
     /// ERC721StakingRewards.sol. For stake() and withdraw() functions,
     /// refer to the respective contracts as those functions have to be
     /// different for ERC20 and ERC721.
-    function harvest() public update(msg.sender) {
-        uint reward = users[msg.sender].reward;
+    function harvest(uint posId) public onlyPositionOwner(posId, msg.sender) update(posId) {
+        uint reward = positions[posId].reward;
         if (reward > 0) {
-            users[msg.sender].reward = 0;
+            positions[posId].reward = 0;
             rewardRegulator.mint(msg.sender, reward);
             emit RewardPaid(msg.sender, reward);
         }
     }
 
+    function createPosition(address owner) internal returns(uint) {
+        uint posId = positionsLength;
+        positions[posId].owner = owner;
+        positionsLength++;
+        return posId;
+    }
+
     /* ========== MODIFIERS ========== */
 
-    modifier update(address account) {
-        User memory user = users[account];
+    modifier onlyPositionOwner(uint posId, address sender) {
+        require(positions[posId].owner == sender, "not sender's position");
+        _;
+    }
+
+    modifier update(uint posId) {
+        if (posId == 0) {
+            posId = positionsLength;
+        }
+        Position memory position = positions[posId];
         uint blockTime = block.timestamp;
 
         // first staking event
@@ -115,16 +132,16 @@ contract StakingRewards is CoreTokens {
             lastUpdate = blockTime;
 
             // user’s rewards (refer to the derivation)
-            users[account].reward = earned(account);
-            users[account].sumOfAdjustedRewards = _sumOfAdjustedRewards;
-            users[account].sumOfRewardWidthPerAreas = _sumOfRewardWidthPerAreas;
+            positions[posId].reward = earned(posId);
+            positions[posId].sumOfAdjustedRewards = _sumOfAdjustedRewards;
+            positions[posId].sumOfRewardWidthPerAreas = _sumOfRewardWidthPerAreas;
         }
 
-        users[account].lastUpdate = blockTime;
+        positions[posId].lastUpdate = blockTime;
 
-        _sumOfEntryTimes -= user.lastUpdate * user.balance;
+        _sumOfEntryTimes -= position.lastUpdate * position.balance;
         _;
-        _sumOfEntryTimes += blockTime * users[account].balance;
+        _sumOfEntryTimes += blockTime * positions[posId].balance; // dont use position.balance here
     }
 
     /* ========== EVENTS ========== */
