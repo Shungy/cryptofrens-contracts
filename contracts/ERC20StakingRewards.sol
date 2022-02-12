@@ -11,17 +11,21 @@ contract ERC20StakingRewards is Pausable, StakingRewards {
         StakingRewards(_stakingToken, _rewardRegulator)
     {}
 
-    function stake(uint amount, address to) external whenNotPaused update(0) {
+    function stake(
+        uint amount,
+        uint posId,
+        address to
+    ) external whenNotPaused onlyPositionOwner(posId, msg.sender) update(0) {
         require(amount > 0, "cannot stake 0");
-        uint posId = createPosition(to);
+        address sender = msg.sender;
+        require(to != address(0), "cannot stake to zero address");
+        if (posId == 0) {
+            posId = createPosition(to);
+        }
         totalSupply += amount;
         positions[posId].balance += amount;
-        IERC20(stakingToken).safeTransferFrom(
-            msg.sender,
-            address(this),
-            amount
-        );
-        emit Staked(msg.sender, amount);
+        IERC20(stakingToken).safeTransferFrom(sender, address(this), amount);
+        emit Staked(sender, amount);
     }
 
     function withdraw(uint amount, uint posId)

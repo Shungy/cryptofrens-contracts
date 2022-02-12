@@ -22,14 +22,18 @@ contract ERC721StakingRewards is Pausable, StakingRewards {
         return tokens;
     }
 
-    function stake(uint[] memory tokens, address to)
-        external
-        whenNotPaused
-        update(0)
-    {
+    function stake(
+        uint[] memory tokens,
+        uint posId,
+        address to
+    ) external whenNotPaused onlyPositionOwner(posId, msg.sender) update(0) {
         uint amount = tokens.length;
         require(amount > 0, "cannot stake 0");
-        uint posId = createPosition(to);
+        address sender = msg.sender;
+        require(to != address(0), "cannot stake to zero address");
+        if (posId == 0) {
+            posId = createPosition(to);
+        }
         for (uint i; i < amount; ++i) {
             uint tokenId = tokens[i];
             uint balance = positions[posId].balance;
@@ -37,17 +41,17 @@ contract ERC721StakingRewards is Pausable, StakingRewards {
             _tokensIndex[tokenId] = balance;
             ownerOf[tokenId] = posId;
             positions[posId].balance++;
-            IERC721(stakingToken).transferFrom(
-                msg.sender,
-                address(this),
-                tokenId
-            );
+            IERC721(stakingToken).transferFrom(sender, address(this), tokenId);
         }
         totalSupply += amount;
-        emit Staked(msg.sender, tokens);
+        emit Staked(sender, tokens);
     }
 
-    function withdraw(uint[] memory tokens, uint posId) public onlyPositionOwner(posId, msg.sender) update(posId) {
+    function withdraw(uint[] memory tokens, uint posId)
+        public
+        onlyPositionOwner(posId, msg.sender)
+        update(posId)
+    {
         uint amount = tokens.length;
         require(amount > 0, "cannot withdraw 0");
         for (uint i; i < amount; ++i) {

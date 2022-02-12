@@ -147,7 +147,9 @@ contract StakingRewards is CoreTokens {
     /* ========== MODIFIERS ========== */
 
     modifier onlyPositionOwner(uint posId, address sender) {
-        require(positions[posId].owner == sender, "not sender's position");
+        if (posId != 0) {
+            require(positions[posId].owner == sender, "not sender's position");
+        }
         _;
     }
 
