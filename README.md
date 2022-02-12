@@ -8,7 +8,7 @@ HAPPY 🐸 is [an ERC20 token](https://eips.ethereum.org/EIPS/eip-20) with a nov
 
 90% of emissions will go to HAPPY-WAVAX PGL (Pangolin Liquidity Token) stakers, and
 10% of emissions will go to CryptoFrens NFT stakers. There is no developer allocation,
-VC allocation, advisor allocation, not treasury allocation. All the emissions will be
+VC allocation, advisor allocation, nor treasury allocation. All the emissions will be
 distributed to the community through asset staking. After the sale of all CryptoFren
 NFTs, the NFTs will be backed slightly below their minting price. Then we plan to
 reduce the NFT staking allocation, and increase LP staking allocation. Technically,
