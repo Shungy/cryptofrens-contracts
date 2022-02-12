@@ -17,8 +17,8 @@ will be utilized to democratize the process.
 
 ### Emission Schedule
 
-For `n` seconds `n / (200 days + n)` of the remaining supply is emitted. Remaining
-supply is `maxSupply + burnedSupply - emittedSupply`. Emitted supply is the supply
+For `n` seconds `n / (200 days + n)` of the remaining supply is emitted. The remaining
+supply means `maxSupply + burnedSupply - emittedSupply`. The emitted supply is the supply
 that has been marked as mintable up to that point by the minter contract. Not all
 `emittedSupply` has to be minted at that point. `maxSupply` will be set to 10 million.
 
