@@ -3,7 +3,12 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./IHappy.sol";
+
+interface IHappy {
+    function mintableTotal() external view returns (uint);
+
+    function mint(address account, uint amount) external;
+}
 
 // A contract similar to MiniChef. But it just manages staking contracts.
 
@@ -23,10 +28,9 @@ contract RewardRegulator is Ownable {
     IHappy public immutable HAPPY;
 
     uint private constant DENOMINATOR = 10000;
+    uint private constant HALF_SUPPLY = 200 days;
 
     uint public totalEmitted;
-    uint public halfSupply = 200 days;
-    uint public lastUpdateToHalfSupply;
     uint public mintersLength;
 
     bool public initiated;
@@ -34,15 +38,37 @@ contract RewardRegulator is Ownable {
     struct Minter {
         uint allocation;
         uint lastUpdate;
-        uint unminted;
-        uint index;
+        uint unminted; // rewards that can be minted by the staking contract
+        uint undeclared; // rewards not declared through setRewards()
     }
 
     mapping(address => Minter) public minters;
-    mapping(uint => address) public mintersIndex;
+    mapping(uint => address) public minterByIndex;
 
     constructor(address rewardToken) {
         HAPPY = IHappy(rewardToken);
+    }
+
+    function getMinters(uint from, uint to)
+        external
+        view
+        returns (address[] memory, Minter[] memory)
+    {
+        require(initiated, "contract not initated");
+        if (to >= mintersLength) {
+            to = mintersLength - 1;
+        }
+        require(from <= to, "index out of bounds");
+        uint requestLength = to - from + 1;
+        address[] memory minterAddresses = new address[](requestLength);
+        Minter[] memory requestedMinters = new Minter[](requestLength);
+        for (uint i = from; i <= to; ++i) {
+            uint index = i - from;
+            address addr = minterByIndex[i];
+            minterAddresses[index] = addr;
+            requestedMinters[index] = minters[addr];
+        }
+        return (minterAddresses, requestedMinters);
     }
 
     function getRewards(address account) public view returns (uint) {
@@ -50,13 +76,15 @@ contract RewardRegulator is Ownable {
         Minter memory minter = minters[account];
         uint interval = blockTime - minter.lastUpdate;
         if (interval == 0 || minter.allocation == 0) {
-            return 0;
+            return minter.undeclared;
         }
-        return (interval *
-            (HAPPY.mintableTotal() - totalEmitted) *
-            minter.allocation) /
+        return
+            minter.undeclared +
+            (interval *
+                (HAPPY.mintableTotal() - totalEmitted) *
+                minter.allocation) /
             DENOMINATOR /
-            (halfSupply + interval);
+            (HALF_SUPPLY + interval);
     }
 
     function setRewards() external returns (uint) {
@@ -64,6 +92,7 @@ contract RewardRegulator is Ownable {
         uint rewards = getRewards(sender);
         minters[sender].lastUpdate = block.timestamp;
         minters[sender].unminted += rewards;
+        minters[sender].undeclared = 0;
         totalEmitted += rewards;
         return rewards;
     }
@@ -76,26 +105,6 @@ contract RewardRegulator is Ownable {
             minters[sender].unminted -= amount;
         }
         HAPPY.mint(to, amount);
-    }
-
-    function setHalfSupply(uint newHalfSupply) external onlyOwner {
-        // 10% max change prevents dev making himself the only minter and
-        // insta reducing halfSupply to print a lot of tokens to himself in
-        // a short notice before people get a chance to exit
-        require(
-            newHalfSupply > (halfSupply * 9) / 10 &&
-                newHalfSupply < (halfSupply * 11) / 10 &&
-                newHalfSupply > 10 days,
-            "newHalfSupply must be within 10% of previous halfSupply"
-        );
-        // 1 day timelock prevents insta abuse of 10% limit
-        require(
-            block.timestamp - lastUpdateToHalfSupply > 1 days,
-            "1 day must pass before changing halfSupply"
-        );
-        lastUpdateToHalfSupply = block.timestamp;
-        halfSupply = newHalfSupply;
-        emit HalfSupplyChange(halfSupply);
     }
 
     function setMinters(address[] memory accounts, uint[] memory allocations)
@@ -112,16 +121,17 @@ contract RewardRegulator is Ownable {
             Minter memory minter = minters[account];
             uint oldAlloc = minter.allocation;
             require(newAlloc != oldAlloc, "new allocation must not be same");
+            if (minter.lastUpdate == 0) {
+                // index the new minter for interfacing purposes
+                minterByIndex[mintersLength] = account;
+                mintersLength++;
+            } else if (oldAlloc != 0) {
+                // stash the undeclared rewards
+                minters[account].undeclared = getRewards(account);
+            }
+            minters[account].lastUpdate = blockTime;
             totalAllocChange += int(oldAlloc) - int(newAlloc);
             minters[account].allocation = newAlloc;
-            if (oldAlloc == 0) {
-                minters[account].lastUpdate = blockTime;
-            }
-            if (minter.index == 0) {
-                mintersLength += 1;
-                minters[account].index = mintersLength;
-                mintersIndex[mintersLength] = account;
-            }
             emit AllocationChange(account, newAlloc);
         }
         // total allocations can only equal 0 or DENOMINATOR
@@ -139,6 +149,5 @@ contract RewardRegulator is Ownable {
         }
     }
 
-    event HalfSupplyChange(uint newHalfSupply);
     event AllocationChange(address indexed account, uint newAllocation);
 }
