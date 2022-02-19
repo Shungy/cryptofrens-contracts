@@ -2,15 +2,15 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/security/Pausable.sol";
-import "./StakingRewards.sol";
+import "./SunshineAndRainbows.sol";
 
-contract ERC721StakingRewards is Pausable, StakingRewards {
+contract ERC721StakingRewards is Pausable, SunshineAndRainbows {
     mapping(uint => mapping(uint => uint)) private _tokensOf;
     mapping(uint => uint) private _tokensIndex;
     mapping(uint => uint) public ownerOf;
 
     constructor(address _stakingToken, address _rewardRegulator)
-        StakingRewards(_stakingToken, _rewardRegulator)
+        SunshineAndRainbows(_stakingToken, _rewardRegulator)
     {}
 
     function tokensOf(uint posId) public view returns (uint[] memory) {

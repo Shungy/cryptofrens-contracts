@@ -2,13 +2,13 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/security/Pausable.sol";
-import "./StakingRewards.sol";
+import "./SunshineAndRainbows.sol";
 
-contract ERC20StakingRewards is Pausable, StakingRewards {
+contract ERC20StakingRewards is Pausable, SunshineAndRainbows {
     using SafeERC20 for IERC20;
 
     constructor(address _stakingToken, address _rewardRegulator)
-        StakingRewards(_stakingToken, _rewardRegulator)
+        SunshineAndRainbows(_stakingToken, _rewardRegulator)
     {}
 
     function stake(

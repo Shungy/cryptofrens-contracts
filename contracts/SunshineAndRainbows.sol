@@ -13,7 +13,7 @@ interface IRewardRegulator {
     function mint(address to, uint amount) external;
 }
 
-contract StakingRewards is CoreTokens {
+contract SunshineAndRainbows is CoreTokens {
     using SafeERC20 for IERC20;
 
     /* ========== STATE VARIABLES ========== */
