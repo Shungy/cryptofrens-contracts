@@ -3,18 +3,19 @@
 // solhint-disable not-rely-on-time
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./CoreTokens.sol";
 
 interface IRewardRegulator {
-    function setRewards() external returns (uint);
-
     function getRewards(address account) external view returns (uint);
+
+    function setRewards() external returns (uint);
 
     function mint(address to, uint amount) external;
 }
 
 contract StakingRewards is CoreTokens {
+    using SafeERC20 for IERC20;
+
     /* ========== STATE VARIABLES ========== */
 
     IRewardRegulator public immutable rewardRegulator;
@@ -22,20 +23,20 @@ contract StakingRewards is CoreTokens {
     uint public lastUpdate;
     uint public totalSupply;
     uint public positionsLength = 1; // 0 is reserved
-
     uint private _initTime;
-    uint private _prevStakingDuration;
     uint private _sumOfEntryTimes;
-    uint private _sumOfX;
-    uint private _sumOfY;
+    // _rewardsPerStakingDuration = `sum of r/S` in the proof
+    uint private _rewardsPerStakingDuration;
+    // _idealPosition = `sum of I` in the proof
+    uint private _idealPosition;
 
     struct Position {
         uint balance;
         uint reward;
         uint rewardDebt;
         uint lastUpdate;
-        uint sumOfX;
-        uint sumOfY;
+        uint rewardsPerStakingDuration;
+        uint idealPosition;
         uint parentPosId;
         address owner;
     }
@@ -55,8 +56,7 @@ contract StakingRewards is CoreTokens {
     /* ========== VIEWS ========== */
 
     function getRewardVariables() external view returns (uint, uint) {
-        uint rewards = rewardRegulator.getRewards(address(this));
-        return rewardVariables(rewards);
+        return rewardVariables(rewardRegulator.getRewards(address(this)));
     }
 
     function userPositions(
@@ -80,40 +80,37 @@ contract StakingRewards is CoreTokens {
 
     function pendingRewards(uint posId) external view returns (uint) {
         uint rewards = rewardRegulator.getRewards(address(this));
-        (uint tempSumOfX, uint tempSumOfY) = rewardVariables(rewards);
-        return earned(posId, tempSumOfX, tempSumOfY);
+        (uint x, uint y) = rewardVariables(rewards);
+        return earned(posId, x, y);
     }
 
     /// @param posId position id
     /// @return amount of reward tokens the account earned between its last
     /// harvest and the contract’s last update
-    function earned(uint posId, uint sumOfX, uint sumOfY) private view returns (uint) {
+    function earned(uint posId, uint idealPosition, uint rewardsPerStakingDuration) private view returns (uint) {
         require(posId != 0, "posId 0 is reserved for new deposits");
         Position memory position = positions[posId];
         if (position.lastUpdate < _initTime) {
-            return position.reward;
+            return 0;
         }
         return
             position.reward +
-            (sumOfX -
-                position.sumOfX -
-                2 *
-                (position.lastUpdate - _initTime) *
-                (sumOfY - position.sumOfY)) *
+            (idealPosition - position.idealPosition -
+                (rewardsPerStakingDuration - position.rewardsPerStakingDuration) *
+                (position.lastUpdate - _initTime)) *
             position.balance;
-    }
-
-    function stakingDuration() private view returns (uint) {
-        return block.timestamp * totalSupply - _sumOfEntryTimes;
     }
 
     /* ========== MUTATIVE FUNCTIONS ========== */
 
-    /// @notice harvests accumulated rewards of the user
-    /// @dev harvest() is shared by ERC20StakingRewards.sol and
-    /// ERC721StakingRewards.sol. For stake() and withdraw() functions,
-    /// refer to the respective contracts as those functions have to be
-    /// different for ERC20 and ERC721.
+    /**
+     * @notice Harvests accumulated rewards of the user
+     * @dev harvest() is shared by ERC20StakingRewards.sol and
+     * ERC721StakingRewards.sol. For stake() and withdraw() functions,
+     * refer to the respective contracts as those functions have to be
+     * different for ERC20 and ERC721.
+     * @param posId ID of the position to be harvested from
+     */
     function harvest(uint posId)
         public
         onlyPositionOwner(posId, msg.sender)
@@ -122,7 +119,7 @@ contract StakingRewards is CoreTokens {
         require(posId != 0, "posId 0 is reserved for new deposits");
         Position memory position = positions[posId];
         uint reward = position.reward - position.rewardDebt;
-        if (reward > 0) {
+        if (reward != 0) {
             positions[posId].reward = 0;
             positions[posId].rewardDebt = 0;
             rewardRegulator.mint(msg.sender, reward);
@@ -135,6 +132,7 @@ contract StakingRewards is CoreTokens {
     // special harvest method that does not reset APR
     function harvestAndStake(uint posId) public onlyPositionOwner(posId, msg.sender) {
         require(posId != 0, "posId 0 is reserved for new deposits");
+        require(pairToken != address(0));
         uint blockTime = block.timestamp;
 
         Position memory position = positions[posId];
@@ -148,15 +146,17 @@ contract StakingRewards is CoreTokens {
             // we will not update the position so we must record reward as debt
             positions[posId].rewardDebt = reward;
 
+            (uint256 reserve0, uint256 reserve1) = pair.getReserves();
+
             // mint HAPPY to this contract
             // request AVAX from sender or have spending approval of WAVAX
             // send
+            IERC20(pairToken).safeTransferFrom(msg.sender, address(this), amount);
         }
 
         _;
 
         lastUpdate = blockTime;
-        _prevStakingDuration = stakingDuration();
     }
 
     */
@@ -175,26 +175,18 @@ contract StakingRewards is CoreTokens {
 
     function rewardVariables(uint rewards) private view returns (uint, uint) {
         uint blockTime = block.timestamp;
-
-        uint interval = blockTime - lastUpdate;
-
-        // 2x the area of the trapezoid formed under the stakingDuration line
-        uint stakeArea = (_prevStakingDuration + stakingDuration()) * interval;
-
-        // maximum stakeArea for one staking token
-        uint idealStakeArea = (lastUpdate + blockTime - 2 * _initTime) *
-            interval;
-
+        // stakingDuration = `S` in the proof.
+        uint stakingDuration = blockTime * totalSupply - _sumOfEntryTimes;
         return (
-            _sumOfX + (idealStakeArea * rewards) / stakeArea,
-            _sumOfY + (rewards * interval) / stakeArea
+            _idealPosition + (blockTime - _initTime) * rewards / stakingDuration,
+            _rewardsPerStakingDuration + rewards / stakingDuration
         );
     }
 
     function updatePosition(uint posId) private {
-        positions[posId].sumOfX = _sumOfX;
-        positions[posId].sumOfY = _sumOfY;
         positions[posId].lastUpdate = block.timestamp;
+        positions[posId].idealPosition = _idealPosition;
+        positions[posId].rewardsPerStakingDuration = _rewardsPerStakingDuration;
     }
 
     /* ========== MODIFIERS ========== */
@@ -222,26 +214,21 @@ contract StakingRewards is CoreTokens {
         if (position.lastUpdate != blockTime) {
             if (lastUpdate != blockTime) {
                 uint rewards = rewardRegulator.setRewards();
-                (_sumOfX, _sumOfY) = rewardVariables(rewards);
+                (_idealPosition, _rewardsPerStakingDuration) = rewardVariables(rewards);
             }
-            positions[posId].reward = earned(posId, _sumOfX, _sumOfY);
+            positions[posId].reward = earned(posId, _idealPosition, _rewardsPerStakingDuration);
             updatePosition(posId);
         }
 
-        // if position.lastUpdate is 0, position.balance also is.
-        // therefore use position.lastUpdate as we do not want block time
         _sumOfEntryTimes -= position.lastUpdate * position.balance;
         _;
-        // must use positions[posId].balance, cuz function might
-        // have changed the balance
-        _sumOfEntryTimes += blockTime * positions[posId].balance;
+        position = positions[posId];
+        _sumOfEntryTimes += blockTime * position.balance;
 
-        // if the position values were not initiated, initiate them
-        if (positions[posId].lastUpdate == 0) {
+        if (position.lastUpdate == 0) {
             updatePosition(posId);
         }
         lastUpdate = blockTime;
-        _prevStakingDuration = stakingDuration();
     }
 
     /* ========== EVENTS ========== */

@@ -24,5 +24,15 @@
   "dependencies": {
     "@openzeppelin/contracts": "^4.4.0",
     "synthetix": "^2.54.0"
+  },
+  "prettier": {
+    "overrides": [
+      {
+        "files": "*.sol",
+        "options": {
+          "explicitTypes": "never"
+        }
+      }
+    ]
   }
 }

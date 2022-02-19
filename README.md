@@ -7,9 +7,9 @@ HAPPY 🐸 is [an ERC20 token](https://eips.ethereum.org/EIPS/eip-20) with a nov
 ### Reward Allocations
 
 90% of emissions will go to HAPPY-WAVAX PGL (Pangolin Liquidity Token) stakers, and
-10% of emissions will go to CryptoFrens NFT stakers. There is no developer allocation,
+10% of emissions will go to CryptoFrens NFT stakers. There will be no developer allocation,
 VC allocation, advisor allocation, nor treasury allocation. All the emissions will be
-distributed to the community through asset staking. After the sale of all CryptoFren
+distributed to the community through asset staking. After the sale of all CryptoFrens
 NFTs, the NFTs will be backed slightly below their minting price. Then we plan to
 reduce the NFT staking allocation, and increase LP staking allocation. Technically,
 the reward allocations can be changed by the owner. However, off-chain voting methods
@@ -46,7 +46,7 @@ create an exploit-free protocol.
 
 ## Microtokenomics
 
-Most of the current staking algorithms are all derived from [Synthetix’ implementation](https://github.com/Synthetixio/synthetix/blob/v2.54.0/contracts/StakingRewards.sol).
+Most of the current staking algorithms are derived from [Synthetix’ implementation](https://github.com/Synthetixio/synthetix/blob/v2.54.0/contracts/StakingRewards.sol).
 This implementation simply distributes the rewards proportional to the stake amount of
 an account. To encourage sticky liquidity, many protocols have implemented *ad hoc*
 “solutions” such as “paper-hand fees”, which seizes portion of user’s tokens if it is
