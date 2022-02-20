@@ -46,7 +46,7 @@ contract Happy is Ownable {
     }
 
     function mintableTotal() external view returns (uint) {
-        totalSupply + burnedSupply;
+        return totalSupply + burnedSupply;
     }
 
     /* ========== MUTATIVE FUNCTIONS ========== */
@@ -108,7 +108,7 @@ contract Happy is Ownable {
 
     function mint(address account, uint amount) external {
         require(msg.sender == minter, "Sender is not allowed to mint");
-        require(maxSupply >= totalSupply + amount);
+        require(maxSupply >= totalSupply + amount, "Cant mint above maxSupply");
         _mint(account, amount);
     }
 

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPLv3
 pragma solidity ^0.8.0;
+/*
 
-import "@openzeppelin/contracts/security/Pausable.sol";
 import "./SunshineAndRainbows.sol";
 
-contract ERC721StakingRewards is Pausable, SunshineAndRainbows {
+contract ERC721StakingRewards is SunshineAndRainbows {
     mapping(uint => mapping(uint => uint)) private _tokensOf;
     mapping(uint => uint) private _tokensIndex;
     mapping(uint => uint) public ownerOf;
@@ -22,7 +22,7 @@ contract ERC721StakingRewards is Pausable, SunshineAndRainbows {
         return tokens;
     }
 
-    function stake(
+    function stakeERC721(
         uint[] memory tokens,
         uint posId,
         address to
@@ -30,7 +30,9 @@ contract ERC721StakingRewards is Pausable, SunshineAndRainbows {
         uint amount = tokens.length;
         require(amount > 0, "cannot stake 0");
         address sender = msg.sender;
-        require(to != address(0), "cannot stake to zero address");
+        if (to == address(0)) {
+            to = sender;
+        }
         if (posId == 0) {
             posId = createPosition(to, 0);
         }
@@ -44,10 +46,10 @@ contract ERC721StakingRewards is Pausable, SunshineAndRainbows {
             IERC721(stakingToken).transferFrom(sender, address(this), tokenId);
         }
         totalSupply += amount;
-        emit Staked(sender, tokens);
+        emit Staked(sender, amount);
     }
 
-    function withdraw(uint[] memory tokens, uint posId)
+    function withdrawERC721(uint[] memory tokens, uint posId)
         public
         onlyPositionOwner(posId, msg.sender)
         update(posId)
@@ -82,14 +84,20 @@ contract ERC721StakingRewards is Pausable, SunshineAndRainbows {
             );
         }
         totalSupply -= amount;
-        emit Withdrawn(msg.sender, tokens);
+        emit Withdrawn(msg.sender, amount);
+    }
+
+    function withdraw(uint, uint) public pure override {
+        revert("SunshineAndRainbows::withdraw: use withdrawERC721");
+    }
+
+    function stake(uint, uint, address) public pure override {
+        revert("SunshineAndRainbows::stake: use stakeERC721");
     }
 
     //function exit() external {
     //    withdraw(tokensOf(msg.sender));
     //    harvest();
     //}
-
-    event Staked(address indexed position, uint[] tokens);
-    event Withdrawn(address indexed position, uint[] tokens);
 }
+*/

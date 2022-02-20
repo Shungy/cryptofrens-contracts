@@ -10,22 +10,20 @@ interface IHappy {
     function mint(address account, uint amount) external;
 }
 
-// A contract similar to MiniChef. But it just manages staking contracts.
-
-// Reward rate is based on emitting ~1/201 of remaining supply each day. It
-// assumes this is the only contract that has minting access for HAPPY.
-
-// RewardRegulator can distribute to as many contracts as its DENOMINATOR. It
-// does not care how those contracts themselves distribute tokens to users. It
-// only cares that those staking contracts request minting no more tokens than
-// they’re eligible.
-
-// Hence this contract offers similar token security to MiniChef, while allowing
-// more flexibility as to how the tokens are distributed to stakers. It also
-// does not require funding, as it mints directly from the token contract.
-
+/**
+ * @notice A contract similar to MiniChef. But it just manages staking
+ * contracts. Reward rate is based on emitting ~t/(200+t) of remaining supply
+ * each t days. It assumes this is the only contract that has minting access
+ * for HAPPY. RewardRegulator can distribute to as many contracts as its
+ * DENOMINATOR. It does not care how those contracts themselves distribute
+ * tokens to users. It only cares that those staking contracts request minting
+ * no more tokens than they’re eligible. Hence this contract offers similar
+ * token security to MiniChef, while allowing more flexibility as to how the
+ * tokens are distributed to stakers. It also does not require funding, as it
+ * mints directly from the token contract.
+ */
 contract RewardRegulator is Ownable {
-    IHappy public immutable HAPPY;
+    IHappy public immutable happy;
 
     uint private constant DENOMINATOR = 10000;
     uint private constant HALF_SUPPLY = 200 days;
@@ -46,7 +44,7 @@ contract RewardRegulator is Ownable {
     mapping(uint => address) public minterByIndex;
 
     constructor(address rewardToken) {
-        HAPPY = IHappy(rewardToken);
+        happy = IHappy(rewardToken);
     }
 
     function getMinters(uint from, uint to)
@@ -54,11 +52,14 @@ contract RewardRegulator is Ownable {
         view
         returns (address[] memory, Minter[] memory)
     {
-        require(initiated, "contract not initated");
+        require(
+            initiated,
+            "RewardRegulator::getMinters: contract not initated"
+        );
         if (to >= mintersLength) {
             to = mintersLength - 1;
         }
-        require(from <= to, "index out of bounds");
+        require(from <= to, "RewardRegulator::getMinters: index out of bounds");
         uint requestLength = to - from + 1;
         address[] memory minterAddresses = new address[](requestLength);
         Minter[] memory requestedMinters = new Minter[](requestLength);
@@ -81,7 +82,7 @@ contract RewardRegulator is Ownable {
         return
             minter.undeclared +
             (interval *
-                (HAPPY.mintableTotal() - totalEmitted) *
+                (happy.mintableTotal() - totalEmitted) *
                 minter.allocation) /
             DENOMINATOR /
             (HALF_SUPPLY + interval);
@@ -100,11 +101,14 @@ contract RewardRegulator is Ownable {
     function mint(address to, uint amount) external {
         address sender = msg.sender;
         Minter memory minter = minters[sender];
-        require(amount <= minter.unminted && amount > 0, "Invalid mint amount");
+        require(
+            amount <= minter.unminted && amount > 0,
+            "RewardRegulator::mint: Invalid mint amount"
+        );
         unchecked {
             minters[sender].unminted -= amount;
         }
-        HAPPY.mint(to, amount);
+        happy.mint(to, amount);
     }
 
     function setMinters(address[] memory accounts, uint[] memory allocations)
@@ -112,7 +116,10 @@ contract RewardRegulator is Ownable {
         onlyOwner
     {
         uint length = accounts.length;
-        require(length == allocations.length, "arrays must be of equal length");
+        require(
+            length == allocations.length,
+            "RewardRegulator::setMinters: arrays must be of equal length"
+        );
         uint blockTime = block.timestamp;
         int totalAllocChange;
         for (uint i; i < length; ++i) {
@@ -120,7 +127,10 @@ contract RewardRegulator is Ownable {
             uint newAlloc = allocations[i];
             Minter memory minter = minters[account];
             uint oldAlloc = minter.allocation;
-            require(newAlloc != oldAlloc, "new allocation must not be same");
+            require(
+                newAlloc != oldAlloc,
+                "RewardRegulator::setMinters: new allocation must not be same"
+            );
             if (minter.lastUpdate == 0) {
                 // index the new minter for interfacing purposes
                 minterByIndex[mintersLength] = account;
@@ -144,7 +154,7 @@ contract RewardRegulator is Ownable {
         } else {
             require(
                 totalAllocChange == 0,
-                "sum of allocation changes must equal zero"
+                "RewardRegulator::setMinters: invalid allocations sum"
             );
         }
     }
