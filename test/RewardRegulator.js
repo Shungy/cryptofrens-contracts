@@ -36,9 +36,9 @@ function generateRecipients(recipientsLength) {
 
 };
 
-function getRewards(interval, allocation) {
+function getRewards(interval, allocation, halfSupply) {
   return allocation.mul(interval).mul(TOTAL_SUPPLY)
-    .div(DENOMINATOR).div(HALF_SUPPLY.add(interval));
+    .div(DENOMINATOR).div(halfSupply.add(interval));
 };
 
 // Start test block
@@ -457,7 +457,7 @@ describe("RewardRegulator.js.sol", function () {
 
         var undeclared = BigNumber.from("0");
         if (i < length) {
-          undeclared = getRewards(interval, allocations[i]);
+          undeclared = getRewards(interval, allocations[i], HALF_SUPPLY);
         }
 
         expect(minter.allocation).to.equal(newAllocations[i]);
@@ -541,6 +541,103 @@ describe("RewardRegulator.js.sol", function () {
 
       expect(totalAlloc).to.equal("0");
       expect(await this.regulator.initiated()).to.equal(false);
+      expect(await this.regulator.mintersLength()).to.equal(length);
+
+    });
+
+    it("restarts allocations", async function () {
+      expect(await this.regulator.initiated()).to.equal(false);
+      expect(await this.regulator.mintersLength()).to.equal("0");
+
+      var length = 7;
+      var [recipients, allocations] = generateRecipients(length);
+
+      expect(await this.regulator.setMinters(recipients, allocations)).to.emit(
+        this.regulator, "Initiation"
+      );
+
+      var blockNumber = await ethers.provider.getBlockNumber();
+      var blockTime = (await ethers.provider.getBlock(blockNumber)).timestamp;
+
+      var totalAlloc = "0";
+      for (let i = 0; i < length; i++) {
+        var minter = await this.regulator.minters(recipients[i]);
+
+        expect(minter.allocation).to.equal(allocations[i]);
+        expect(minter.unminted).to.equal("0");
+        expect(minter.undeclared).to.equal("0");
+        expect(minter.lastUpdate).to.equal(blockTime);
+
+        expect(minter.length).to.equal(4);
+
+        totalAlloc = minter.allocation.add(totalAlloc);
+      }
+
+      expect(totalAlloc).to.equal(DENOMINATOR);
+      expect(await this.regulator.initiated()).to.equal(true);
+      expect(await this.regulator.mintersLength()).to.equal(length);
+
+      var newAllocations = [];
+      for (let i = 0; i < length; i++) {
+        newAllocations[i] = BigNumber.from("0");
+      };
+
+      expect(await this.regulator.setMinters(recipients, newAllocations)).to.emit(
+        this.regulator, "Initiation"
+      );
+
+      blockNumber = await ethers.provider.getBlockNumber();
+      var newBlockTime = (await ethers.provider.getBlock(blockNumber)).timestamp;
+      var interval = newBlockTime - blockTime;
+
+      await ethers.provider.send("evm_increaseTime", [ONE_DAY.toNumber()]);
+
+      totalAlloc = "0";
+      var undeclared = [];
+      for (let i = 0; i < length; i++) {
+        var minter = await this.regulator.minters(recipients[i]);
+        undeclared[i] = getRewards(interval, allocations[i], HALF_SUPPLY);
+
+        expect(minter.allocation).to.equal("0");
+        expect(minter.unminted).to.equal("0");
+        expect(minter.undeclared).to.equal(undeclared[i]);
+        expect(minter.lastUpdate).to.equal(newBlockTime);
+
+        expect(minter.length).to.equal(4);
+
+        totalAlloc = minter.allocation.add(totalAlloc);
+      }
+
+      expect(totalAlloc).to.equal("0");
+      expect(await this.regulator.initiated()).to.equal(false);
+      expect(await this.regulator.mintersLength()).to.equal(length);
+
+      expect(await this.regulator.setMinters(recipients, allocations)).to.emit(
+        this.regulator, "Initiation"
+      );
+
+      blockNumber = await ethers.provider.getBlockNumber();
+      var newerBlockTime = (await ethers.provider.getBlock(blockNumber)).timestamp;
+      interval = newerBlockTime - newerBlockTime;
+
+      totalAlloc = "0";
+      for (let i = 0; i < length; i++) {
+        var minter = await this.regulator.minters(recipients[i]);
+        undeclared[i] = undeclared[i]
+          .add(getRewards(interval, allocations[i], HALF_SUPPLY));
+
+        expect(minter.allocation).to.equal(allocations[i]);
+        expect(minter.unminted).to.equal("0");
+        expect(minter.undeclared).to.equal(undeclared[i]);
+        expect(minter.lastUpdate).to.equal(newerBlockTime);
+
+        expect(minter.length).to.equal(4);
+
+        totalAlloc = minter.allocation.add(totalAlloc);
+      }
+
+      expect(totalAlloc).to.equal(DENOMINATOR);
+      expect(await this.regulator.initiated()).to.equal(true);
       expect(await this.regulator.mintersLength()).to.equal(length);
 
     });
@@ -719,7 +816,7 @@ describe("RewardRegulator.js.sol", function () {
       var interval = newBlockTime - blockTime;
 
       var minter = await this.regulator.minters(this.admin.address);
-      var expectedRewards = getRewards(interval, DENOMINATOR);
+      var expectedRewards = getRewards(interval, DENOMINATOR, HALF_SUPPLY);
       expect(minter.unminted).to.equal(expectedRewards);
       expect(minter.lastUpdate).to.equal(newBlockTime);
       expect(await this.regulator.totalEmitted()).to.equal(expectedRewards);
@@ -767,7 +864,7 @@ describe("RewardRegulator.js.sol", function () {
       var interval = newBlockTime - blockTime;
 
       var minter = await this.regulator.minters(this.admin.address);
-      var expectedRewards = getRewards(interval, DENOMINATOR);
+      var expectedRewards = getRewards(interval, DENOMINATOR, HALF_SUPPLY);
       expect(minter.unminted).to.equal(expectedRewards);
       expect(minter.lastUpdate).to.equal(newBlockTime);
       expect(await this.regulator.totalEmitted()).to.equal(expectedRewards);
@@ -800,7 +897,7 @@ describe("RewardRegulator.js.sol", function () {
       var interval = newBlockTime - blockTime;
 
       var minter = await this.regulator.minters(this.admin.address);
-      var expectedRewards = getRewards(interval, DENOMINATOR);
+      var expectedRewards = getRewards(interval, DENOMINATOR, HALF_SUPPLY);
       expect(minter.unminted).to.equal(expectedRewards);
       expect(minter.lastUpdate).to.equal(newBlockTime);
       expect(await this.regulator.totalEmitted()).to.equal(expectedRewards);
@@ -833,7 +930,7 @@ describe("RewardRegulator.js.sol", function () {
       var interval = newBlockTime - blockTime;
 
       var minter = await this.regulator.minters(this.admin.address);
-      var expectedRewards = getRewards(interval, DENOMINATOR);
+      var expectedRewards = getRewards(interval, DENOMINATOR, HALF_SUPPLY);
       expect(minter.unminted).to.equal(expectedRewards);
       expect(minter.lastUpdate).to.equal(newBlockTime);
       expect(await this.regulator.totalEmitted()).to.equal(expectedRewards);
@@ -866,7 +963,7 @@ describe("RewardRegulator.js.sol", function () {
       var interval = newBlockTime - blockTime;
 
       var minter = await this.regulator.minters(this.admin.address);
-      var expectedRewards = getRewards(interval, DENOMINATOR);
+      var expectedRewards = getRewards(interval, DENOMINATOR, HALF_SUPPLY);
       expect(minter.unminted).to.equal(expectedRewards);
       expect(minter.lastUpdate).to.equal(newBlockTime);
       expect(await this.regulator.totalEmitted()).to.equal(expectedRewards);
@@ -917,6 +1014,24 @@ describe("RewardRegulator.js.sol", function () {
 
     });
 
+    it("sets half supply to double when no minters", async function () {
+      var newHalfSupply = HALF_SUPPLY.mul("2");
+
+      expect(await this.regulator.setHalfSupply(newHalfSupply))
+        .to.emit(this.regulator, "NewHalfSupply");
+
+      expect(await this.regulator.halfSupply()).to.equal(newHalfSupply);
+
+    });
+
+    it("reverts when new half supply is the same", async function () {
+      await expect(this.regulator.setHalfSupply(HALF_SUPPLY))
+        .to.be.revertedWith("RewardRegulator::setHalfSupply: new half supply is the same");
+
+      expect(await this.regulator.halfSupply()).to.equal(HALF_SUPPLY);
+
+    });
+
     it("sets half supply when minters length is 50", async function () {
       var length = 50;
       var [recipients, allocations] = generateRecipients(length);
@@ -947,7 +1062,7 @@ describe("RewardRegulator.js.sol", function () {
       for (let i = 0; i < length; i++) {
         var minter = await this.regulator.minters(recipients[i]);
 
-        undeclared = getRewards(interval, allocations[i]);
+        undeclared = getRewards(interval, allocations[i], HALF_SUPPLY);
 
         expect(minter.allocation).to.equal(allocations[i]);
         expect(minter.unminted).to.equal("0");
@@ -962,6 +1077,130 @@ describe("RewardRegulator.js.sol", function () {
       expect(totalAlloc).to.equal(DENOMINATOR);
       expect(await this.regulator.initiated()).to.equal(true);
       expect(await this.regulator.mintersLength()).to.equal(length);
+    });
+
+    it("sets half supply when a minter alloc is zero", async function () {
+      var length = 7;
+      var [recipients, allocations] = generateRecipients(length);
+
+      expect(await this.regulator.setMinters(recipients, allocations)).to.emit(
+        this.regulator, "NewAllocation"
+      );
+
+      var blockNumber = await ethers.provider.getBlockNumber();
+      var blockTime = (await ethers.provider.getBlock(blockNumber)).timestamp;
+
+      expect(await this.regulator.mintersLength()).to.equal(length);
+
+      var newHalfSupply = HALF_SUPPLY.sub(ONE_DAY.mul("30")).add("1");
+
+      await ethers.provider.send("evm_increaseTime", [ONE_DAY.toNumber()]);
+
+      expect(await this.regulator.setHalfSupply(newHalfSupply))
+        .to.emit(this.regulator, "NewHalfSupply");
+
+      expect(await this.regulator.halfSupply()).to.equal(newHalfSupply);
+
+      blockNumber = await ethers.provider.getBlockNumber();
+      var newBlockTime = (await ethers.provider.getBlock(blockNumber)).timestamp;
+      var interval = newBlockTime - blockTime;
+
+      totalAlloc = "0";
+      undeclared = [];
+      for (let i = 0; i < length; i++) {
+        var minter = await this.regulator.minters(recipients[i]);
+
+        undeclared[i] = getRewards(interval, allocations[i], HALF_SUPPLY);
+
+        expect(minter.allocation).to.equal(allocations[i]);
+        expect(minter.unminted).to.equal("0");
+        expect(minter.undeclared).to.equal(undeclared[i]);
+        expect(minter.lastUpdate).to.equal(newBlockTime);
+
+        expect(minter.length).to.equal(4);
+
+        totalAlloc = minter.allocation.add(totalAlloc);
+      }
+
+      expect(totalAlloc).to.equal(DENOMINATOR);
+      expect(await this.regulator.initiated()).to.equal(true);
+      expect(await this.regulator.mintersLength()).to.equal(length);
+
+      var zeroAllocations = [];
+      for (let i = 0; i < length; i++) {
+        zeroAllocations[i] = BigNumber.from("0");
+      }
+      await ethers.provider.send("evm_increaseTime", [ONE_DAY.mul("2").toNumber()]);
+      expect(await this.regulator.setMinters(recipients, zeroAllocations)).to.emit(
+        this.regulator, "Initiation"
+      );
+
+      blockNumber = await ethers.provider.getBlockNumber();
+      var newerBlockTime = (await ethers.provider.getBlock(blockNumber)).timestamp;
+      interval = newerBlockTime - newBlockTime;
+
+      totalAlloc = "0";
+      for (let i = 0; i < length; i++) {
+        var minter = await this.regulator.minters(recipients[i]);
+
+        undeclared[i] = undeclared[i]
+          .add(getRewards(interval, allocations[i], newHalfSupply));
+
+        expect(minter.allocation).to.equal("0");
+        expect(minter.unminted).to.equal("0");
+        expect(minter.undeclared).to.equal(undeclared[i]);
+        expect(minter.lastUpdate).to.equal(newerBlockTime);
+
+        expect(minter.length).to.equal(4);
+
+        totalAlloc = minter.allocation.add(totalAlloc);
+      }
+
+      expect(totalAlloc).to.equal("0");
+      expect(await this.regulator.initiated()).to.equal(false);
+      expect(await this.regulator.mintersLength()).to.equal(length);
+
+      await ethers.provider.send("evm_increaseTime", [ONE_DAY.mul("2").toNumber()]);
+
+      var newerHalfSupply = newHalfSupply.add(ONE_DAY);
+
+      expect(await this.regulator.setHalfSupply(newerHalfSupply))
+        .to.emit(this.regulator, "NewHalfSupply");
+
+      expect(await this.regulator.halfSupply()).to.equal(newerHalfSupply);
+
+      blockNumber = await ethers.provider.getBlockNumber();
+      var newestBlockTime = (await ethers.provider.getBlock(blockNumber)).timestamp;
+      interval = newestBlockTime - newerBlockTime;
+
+      totalAlloc = "0";
+      var totalUndeclared = "0";
+      for (let i = 0; i < length; i++) {
+        var minter = await this.regulator.minters(recipients[i]);
+
+        expect(minter.allocation).to.equal("0");
+        expect(minter.unminted).to.equal("0");
+        expect(minter.undeclared).to.equal(undeclared[i]);
+        expect(minter.lastUpdate).to.equal(newerBlockTime);
+
+        expect(minter.length).to.equal(4);
+
+        totalAlloc = minter.allocation.add(totalAlloc);
+        totalUndeclared = minter.undeclared.add(totalUndeclared);
+      }
+
+      expect(totalAlloc).to.equal("0");
+      expect(await this.regulator.initiated()).to.equal(false);
+      expect(await this.regulator.mintersLength()).to.equal(length);
+
+      var totalReward = getRewards((newBlockTime - blockTime), DENOMINATOR, HALF_SUPPLY)
+        .add(getRewards((newerBlockTime - newBlockTime), DENOMINATOR, newHalfSupply))
+
+      // adjust for max precision loss
+      expect(totalReward).to.be.within(
+        totalUndeclared.sub(DENOMINATOR.mul(length)),
+        totalUndeclared.add(DENOMINATOR.mul(length))
+      );
     });
 
     it("cannot lower half supply by 30 days or more", async function () {
@@ -981,7 +1220,7 @@ describe("RewardRegulator.js.sol", function () {
 
       expect(await this.regulator.halfSupply()).to.equal(newHalfSupply);
 
-      await ethers.provider.send("evm_increaseTime", [ONE_DAY.mul("2").toNumber()]);
+      await ethers.provider.send("evm_increaseTime", [ONE_DAY.mul("2").sub("100").toNumber()]);
 
       var newerHalfSupply = newHalfSupply.sub(ONE_DAY.mul("30")).add("1");
 
@@ -991,7 +1230,7 @@ describe("RewardRegulator.js.sol", function () {
       expect(await this.regulator.halfSupply()).to.equal(newHalfSupply);
     });
 
-    it("can set half supply after 2 days", async function () {
+    it("sets half supply after 2 days", async function () {
       var newHalfSupply = HALF_SUPPLY.sub(ONE_DAY.mul("30")).add("1");
 
       expect(await this.regulator.setHalfSupply(newHalfSupply))
