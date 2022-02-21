@@ -42,7 +42,7 @@ function getRewards(interval, allocation, halfSupply) {
 };
 
 // Start test block
-describe("RewardRegulator.js.sol", function () {
+describe("RewardRegulator.sol", function () {
   before(async function () {
     // Get all signers
     this.signers = await ethers.getSigners();

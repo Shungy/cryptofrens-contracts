@@ -53,7 +53,7 @@ contract RewardRegulator is Ownable {
         uint lastUpdate;
         /// @notice The reward amount that the account can request to mint
         uint unminted;
-        /// @notice The reward amount stashed when allocation changes
+        /// @notice The reward amount stashed when reward rate changes
         uint undeclared;
     }
 
@@ -111,9 +111,8 @@ contract RewardRegulator is Ownable {
      * @return The amount of reward accumulated since the last declaration
      */
     function getRewards(address account) public view returns (uint) {
-        uint blockTime = block.timestamp;
         Minter memory minter = minters[account];
-        uint interval = blockTime - minter.lastUpdate;
+        uint interval = block.timestamp - minter.lastUpdate;
         return
             minter.undeclared +
             (interval *
@@ -220,6 +219,10 @@ contract RewardRegulator is Ownable {
         require(
             newHalfSupply > 10 days,
             "RewardRegulator::setHalfSupply: new half supply is too low"
+        );
+        require(
+            newHalfSupply != halfSupply,
+            "RewardRegulator::setHalfSupply: new half supply is the same"
         );
         if (newHalfSupply < halfSupply) {
             require(
