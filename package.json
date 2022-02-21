@@ -5,9 +5,9 @@
   "main": ".eslintrc.js",
   "scripts": {
     "compile": "export LANG=C && npx hardhat compile",
-    "deploy": "export LANG=C && npx hardhat --network localhost run scripts/deploy.js > .contracts.env",
+    "deploy": "export LANG=C && npx hardhat run scripts/deploy.js > .contracts.env",
     "node": "export LANG=C && npx hardhat node",
-    "test": "export LANG=C && npx hardhat --network localhost test"
+    "test": "export LANG=C && npx hardhat test"
   },
   "author": "",
   "license": "ISC",
@@ -19,12 +19,14 @@
     "ethereum-waffle": "^3.4.0",
     "ethers": "^5.5.1",
     "hardhat": "^2.7.0",
-    "prettier-plugin-solidity": "^1.0.0-beta.19"
+    "prettier-plugin-solidity": "^1.0.0-beta.19",
+    "chance": "^1.1.8",
+    "solgraph": "^0.3.3",
+    "solidity-coverage": "^0.7.20"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.4.0",
     "@pangolindex/exchange-contracts": "^1.0.2",
-    "chance": "^1.1.8",
     "synthetix": "^2.54.0"
   },
   "prettier": {
