@@ -18,6 +18,14 @@ interface IHappy is IERC20Metadata {
 
     function hardcap() external;
 
+    function pause() external;
+
+    function resume() external;
+
+    function renounceOwnership() external;
+
+    function transferOwnership(address newOwner) external;
+
     function setMinter(address minter) external;
 
     function burnedSupply() external view returns (uint);
