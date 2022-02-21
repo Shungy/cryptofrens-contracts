@@ -4,12 +4,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-
-interface IHappy {
-    function mintableTotal() external view returns (uint);
-
-    function mint(address account, uint amount) external;
-}
+import "./interfaces/IHappy.sol";
 
 /**
  * @notice A contract similar to MiniChef. But it just manages staking
