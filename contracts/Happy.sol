@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPLv3
+// Author: shung from https://cryptofrens.xyz/
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";

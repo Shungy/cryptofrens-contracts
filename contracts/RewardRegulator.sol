@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPLv3
+// Author: shung from https://cryptofrens.xyz/
 // solhint-disable not-rely-on-time
 pragma solidity ^0.8.0;
 
@@ -23,30 +24,62 @@ interface IHappy {
  * mints directly from the token contract.
  */
 contract RewardRegulator is Ownable {
+    /// @notice The reward token the contract will distribute
     IHappy public immutable happy;
 
+    /// @notice The divisor for allocations
     uint private constant DENOMINATOR = 10000;
-    uint private constant HALF_SUPPLY = 200 days;
 
+    /// @notice A constant used in the emission schedule expression
+    uint public halfSupply = 200 days;
+
+    /// @notice The timestamp of the last time halfSupply was updated
+    uint public halfSupplyLastUpdate;
+
+    /// @notice The amount of reward tokens that were minted through `mint()`
     uint public totalEmitted;
+
+    /// @notice The number of addresses that had or have non-zero allocation
     uint public mintersLength;
 
+    /// @notice Whether the sum of allocations equal zero or `DENOMINATOR`
     bool public initiated;
 
+    /// @notice The information stored for an account (i.e. minter contract)
     struct Minter {
+        /// @notice The emission allocation of the account
         uint allocation;
+        /// @notice The last time the rewards of the account were declared
         uint lastUpdate;
-        uint unminted; // rewards that can be minted by the staking contract
-        uint undeclared; // rewards not declared through setRewards()
+        /// @notice The reward amount that the account can request to mint
+        uint unminted;
+        /// @notice The reward amount stashed when allocation changes
+        uint undeclared;
     }
 
+    /// @notice The mapping of accounts (i.e. minters) to their information
     mapping(address => Minter) public minters;
+
+    /// @notice The list of past & current accounts
     mapping(uint => address) public minterByIndex;
 
+    /**
+     * @notice Construct a new RewardRegulator contract
+     * @param rewardToken The reward token the contract will distribute
+     * @dev reward token must have `mint()` and `mintableTotal()` function
+     */
     constructor(address rewardToken) {
         happy = IHappy(rewardToken);
     }
 
+    /**
+     * @notice Gets the accounts that have or had non-zero allocation
+     * @param from Shows account from the index `from`
+     * @param to Shows accounts until the index `to`, or until the last account,
+     * whichever is less
+     * @return Returns two arrays, one listing the addresses, and the other
+     * listing the corresponding information
+     */
     function getMinters(uint from, uint to)
         external
         view
@@ -72,22 +105,28 @@ contract RewardRegulator is Ownable {
         return (minterAddresses, requestedMinters);
     }
 
+    /**
+     * @notice Gets the amount of reward tokens yet to be declared for account
+     * @param account Address of the contract to check rewards
+     * @return The amount of reward accumulated since the last declaration
+     */
     function getRewards(address account) public view returns (uint) {
         uint blockTime = block.timestamp;
         Minter memory minter = minters[account];
         uint interval = blockTime - minter.lastUpdate;
-        if (interval == 0 || minter.allocation == 0) {
-            return minter.undeclared;
-        }
         return
             minter.undeclared +
             (interval *
                 (happy.mintableTotal() - totalEmitted) *
                 minter.allocation) /
             DENOMINATOR /
-            (HALF_SUPPLY + interval);
+            (halfSupply + interval);
     }
 
+    /**
+     * @notice Requests the declaration of rewards for the message sender
+     * @return The amount of reward tokens that became eligible for minting
+     */
     function setRewards() external returns (uint) {
         address sender = msg.sender;
         uint rewards = getRewards(sender);
@@ -95,9 +134,15 @@ contract RewardRegulator is Ownable {
         minters[sender].unminted += rewards;
         minters[sender].undeclared = 0;
         totalEmitted += rewards;
+        emit RewardDeclaration(sender, rewards);
         return rewards;
     }
 
+    /**
+     * @notice Mints the `amount` of tokens to `to`
+     * @param to The recipient address of the freshly minted tokens
+     * @param amount The amount of tokens to mint
+     */
     function mint(address to, uint amount) external {
         address sender = msg.sender;
         Minter memory minter = minters[sender];
@@ -111,6 +156,11 @@ contract RewardRegulator is Ownable {
         happy.mint(to, amount);
     }
 
+    /**
+     * @notice Changes minter allocations
+     * @param accounts The list of addresses to have a new allocation
+     * @param allocations The list of allocations corresponding to `accounts`
+     */
     function setMinters(address[] memory accounts, uint[] memory allocations)
         external
         onlyOwner
@@ -132,7 +182,7 @@ contract RewardRegulator is Ownable {
                 "RewardRegulator::setMinters: new allocation must not be same"
             );
             if (minter.lastUpdate == 0) {
-                // index the new minter for interfacing purposes
+                // index the new minter
                 minterByIndex[mintersLength] = account;
                 mintersLength++;
             } else if (oldAlloc != 0) {
@@ -142,15 +192,17 @@ contract RewardRegulator is Ownable {
             minters[account].lastUpdate = blockTime;
             totalAllocChange += int(oldAlloc) - int(newAlloc);
             minters[account].allocation = newAlloc;
-            emit AllocationChange(account, newAlloc);
+            emit NewAllocation(account, newAlloc);
         }
         // total allocations can only equal 0 or DENOMINATOR
         if (totalAllocChange == int(DENOMINATOR) && initiated == true) {
             initiated = false;
+            emit Initiation(false);
         } else if (
             totalAllocChange == -int(DENOMINATOR) && initiated == false
         ) {
             initiated = true;
+            emit Initiation(true);
         } else {
             require(
                 totalAllocChange == 0,
@@ -159,5 +211,50 @@ contract RewardRegulator is Ownable {
         }
     }
 
-    event AllocationChange(address indexed account, uint newAllocation);
+    /**
+     * @notice Changes halfSupply
+     * @dev Beware of gas spending. Too many minters can create problems
+     * @param newHalfSupply The new halfSupply
+     */
+    function setHalfSupply(uint newHalfSupply) external onlyOwner {
+        require(
+            newHalfSupply > 10 days,
+            "RewardRegulator::setHalfSupply: new half supply is too low"
+        );
+        if (newHalfSupply < halfSupply) {
+            require(
+                halfSupply - newHalfSupply < 30 days,
+                "RewardRegulator::setHalfSupply: cannot lower by that much"
+            );
+        }
+        uint blockTime = block.timestamp;
+        require(
+            blockTime - halfSupplyLastUpdate > 2 days,
+            "RewardRegulator::setHalfSupply: cannot update that often"
+        );
+        for (uint i; i < mintersLength; ++i) {
+            address account = minterByIndex[i];
+            Minter memory minter = minters[account];
+            if (minter.allocation != 0) {
+                // stash the undeclared rewards
+                minters[account].undeclared = getRewards(account);
+                minters[account].lastUpdate = blockTime;
+            }
+        }
+        halfSupply = newHalfSupply;
+        halfSupplyLastUpdate = blockTime;
+        emit NewHalfSupply(halfSupply);
+    }
+
+    /// @notice The event that is emitted when an account’s allocation changes
+    event NewAllocation(address indexed account, uint newAllocation);
+
+    /// @notice The event that is emitted when half supply changes
+    event NewHalfSupply(uint newHalfSupply);
+
+    /// @notice The event that is emitted when an account’s rewards are declared
+    event RewardDeclaration(address indexed account, uint rewards);
+
+    /// @notice The event for total allocations changing from zero or to zero
+    event Initiation(bool initiated);
 }
