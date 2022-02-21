@@ -5,11 +5,10 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/IERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
-import "@pangolindex/exchange-contracts/contracts/pangolin-core/interfaces/IPangolinPair.sol";
-import "@pangolindex/exchange-contracts/contracts/pangolin-periphery/interfaces/IPangolinRouter.sol";
+import "./interfaces/IPangolinPair.sol";
+import "./interfaces/IPangolinRouter.sol";
+import "./Recover.sol";
 
 interface IRewardRegulator {
     function getRewards(address account) external view returns (uint);
@@ -22,7 +21,7 @@ interface IRewardRegulator {
 /**
  * @dev A novel staking algorithm. Refer to proofs.
  */
-contract SunshineAndRainbows is Ownable, Pausable {
+contract SunshineAndRainbows is Ownable, Pausable, Recover {
     using SafeERC20 for IERC20;
 
     /* ========== STATE VARIABLES ========== */
@@ -100,7 +99,7 @@ contract SunshineAndRainbows is Ownable, Pausable {
         address _stakingToken,
         address _rewardRegulator,
         address _router
-    ) {
+    ) Recover(_stakingToken) {
         rewardRegulator = IRewardRegulator(_rewardRegulator);
         stakingToken = _stakingToken;
         router = IPangolinRouter(_router);
@@ -374,32 +373,6 @@ contract SunshineAndRainbows is Ownable, Pausable {
         positions[posId].rewardsPerStakingDuration = _rewardsPerStakingDuration;
     }
 
-    /* ========== RESTRICTED FUNCTIONS ========== */
-
-    function recoverERC20(address tokenAddress, uint tokenAmount)
-        external
-        onlyOwner
-    {
-        require(
-            tokenAddress != stakingToken,
-            "Recoverer: staking token is not recoverable"
-        );
-        IERC20(tokenAddress).safeTransfer(msg.sender, tokenAmount);
-        emit RecoveredERC20(tokenAddress, tokenAmount);
-    }
-
-    function recoverERC721(address tokenAddress, uint tokenId)
-        external
-        onlyOwner
-    {
-        require(
-            tokenAddress != stakingToken,
-            "Recoverer: staking token is not recoverable"
-        );
-        IERC721(tokenAddress).transferFrom(address(this), msg.sender, tokenId);
-        emit RecoveredERC721(tokenAddress, tokenId);
-    }
-
     /* ========== MODIFIERS ========== */
 
     modifier update(uint posId) {
@@ -442,6 +415,4 @@ contract SunshineAndRainbows is Ownable, Pausable {
     event RewardPaid(uint position, uint reward);
     event Staked(uint position, uint amount);
     event Withdrawn(uint position, uint amount);
-    event RecoveredERC20(address token, uint amount);
-    event RecoveredERC721(address token, uint tokenId);
 }
