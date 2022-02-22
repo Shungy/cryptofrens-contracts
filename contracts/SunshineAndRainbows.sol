@@ -42,11 +42,11 @@ contract SunshineAndRainbows is Pausable, Recover {
     /// @notice Number of all positions created with the contract
     uint public positionsLength = 1; // 0 is reserved
 
+    /// @notice Sum of all active positions’ `lastUpdate * balance`
+    uint public sumOfEntryTimes;
+
     /// @notice Time stamp of first stake event
     uint private _initTime;
-
-    /// @notice Sum of all active positions’ `lastUpdate * balance`
-    uint private _sumOfEntryTimes;
 
     /**
      * @notice Sum of all intervals’ (`rewards`/`stakingDuration`)
@@ -106,7 +106,9 @@ contract SunshineAndRainbows is Pausable, Recover {
     /* ========== VIEWS ========== */
 
     function pendingRewards(uint posId) external view returns (uint) {
-        (uint x, uint y) = rewardVariables(rewardRegulator.getRewards(address(this)));
+        (uint x, uint y) = rewardVariables(
+            rewardRegulator.getRewards(address(this))
+        );
         return earned(posId, x, y);
     }
 
@@ -119,9 +121,6 @@ contract SunshineAndRainbows is Pausable, Recover {
         uint rewardsPerStakingDuration
     ) private view returns (uint) {
         Position memory position = positions[posId];
-        if (position.lastUpdate == 0) {
-            return 0;
-        }
         return
             position.reward +
             (idealPosition -
@@ -143,9 +142,9 @@ contract SunshineAndRainbows is Pausable, Recover {
          *   = sum(blockTime * balance_i - entryTime_i * balance_i)
          *   = sum(blockTime * balance_i) - sum(entryTime_i * balance_i)
          *   = blockTime * sum(balance_i) - sum(entryTime_i * balance_i)
-         *   = blockTime * totalSupply - _sumOfEntryTimes
+         *   = blockTime * totalSupply - sumOfEntryTimes
          */
-        uint stakingDuration = blockTime * totalSupply - _sumOfEntryTimes;
+        uint stakingDuration = blockTime * totalSupply - sumOfEntryTimes;
         return (
             _idealPosition +
                 ((blockTime - _initTime) * rewards) /
@@ -159,9 +158,17 @@ contract SunshineAndRainbows is Pausable, Recover {
     function updateRewardVariables() internal {
         uint blockTime = block.timestamp;
         if (lastUpdate != blockTime) {
-            (_idealPosition, _rewardsPerStakingDuration) =
-                rewardVariables(rewardRegulator.setRewards());
+            (_idealPosition, _rewardsPerStakingDuration) = rewardVariables(
+                rewardRegulator.setRewards()
+            );
             lastUpdate = blockTime;
+        }
+    }
+
+    function initialize() internal {
+        if (lastUpdate == 0) {
+            lastUpdate = block.timestamp;
+            _initTime = block.timestamp;
         }
     }
 
@@ -179,15 +186,17 @@ contract SunshineAndRainbows is Pausable, Recover {
         return posId;
     }
 
-    function updatePosition(uint posId) private {
-        positions[posId].reward = earned(
-            posId,
-            _idealPosition,
-            _rewardsPerStakingDuration
-        );
+    function updatePosition(uint posId) internal {
+        if (positions[posId].lastUpdate != 0) {
+            positions[posId].reward = earned(
+                posId,
+                _idealPosition,
+                _rewardsPerStakingDuration
+            );
+            positions[posId].rewardDebt = 0;
+        }
         positions[posId].lastUpdate = block.timestamp;
         positions[posId].idealPosition = _idealPosition;
-        positions[posId].rewardDebt = 0;
         positions[posId].rewardsPerStakingDuration = _rewardsPerStakingDuration;
     }
 
@@ -213,7 +222,9 @@ contract SunshineAndRainbows is Pausable, Recover {
         rewardRegulator.mint(sender, reward);
         emit RewardPaid(posId, reward);
 
-        _sumOfEntryTimes += position.balance * (block.timestamp - position.lastUpdate);
+        sumOfEntryTimes +=
+            position.balance *
+            (block.timestamp - position.lastUpdate);
     }
 
     /**
@@ -244,7 +255,11 @@ contract SunshineAndRainbows is Pausable, Recover {
         IERC20(stakingToken).safeTransfer(sender, amount);
         emit Withdrawn(posId, amount);
 
-        _sumOfEntryTimes += block.timestamp * positions[posId].balance - position.lastUpdate * position.balance;
+        sumOfEntryTimes +=
+            block.timestamp *
+            positions[posId].balance -
+            position.lastUpdate *
+            position.balance;
     }
 
     /**
@@ -252,20 +267,12 @@ contract SunshineAndRainbows is Pausable, Recover {
      * @param amount Amount of tokens to stake
      * @param to Owner of the new position
      */
-    function stake(uint amount, address to)
-        external
-        virtual
-        whenNotPaused
-    {
+    function stake(uint amount, address to) external virtual whenNotPaused {
         require(amount > 0, "cannot stake 0");
         require(to != address(0), "cannot stake to zero address");
-        uint blockTime = block.timestamp;
 
         // if this is the first stake event, initialize
-        if (lastUpdate == 0) {
-            lastUpdate = blockTime;
-            _initTime = blockTime;
-        }
+        initialize();
 
         uint posId = createPosition(to, 0);
 
@@ -274,10 +281,14 @@ contract SunshineAndRainbows is Pausable, Recover {
 
         totalSupply += amount;
         positions[posId].balance += amount;
-        IERC20(stakingToken).safeTransferFrom(msg.sender, address(this), amount);
+        IERC20(stakingToken).safeTransferFrom(
+            msg.sender,
+            address(this),
+            amount
+        );
         emit Staked(posId, amount);
 
-        _sumOfEntryTimes += blockTime * amount;
+        sumOfEntryTimes += block.timestamp * amount;
     }
 
     /* ========== EVENTS ========== */
