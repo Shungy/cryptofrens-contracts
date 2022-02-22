@@ -6,6 +6,22 @@ pragma solidity ^0.8.0;
 //import "./interfaces/IPangolinPair.sol";
 //import "./interfaces/IPangolinRouter.sol";
 
+// why use int for position.reward, why record initTime for position. what is position.parent?
+// you will find the answers for all those questions here.
+
+
+
+/*
+        // cannot withdraw if parent position was not updated
+        if (position.parent != 0) {
+            require(
+                position.initTime < positions[position.parent].lastUpdate,
+                "parent position was not updated"
+            );
+        }
+
+*/
+
 /*
     /// @notice Router used for adding liquidity in `harvestAndStake` function
     IPangolinRouter public immutable router;

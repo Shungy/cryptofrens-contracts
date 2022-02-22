@@ -32,13 +32,13 @@ contract SunshineAndRainbows is Pausable, Recover {
     uint public totalSupply;
 
     /// @notice Number of all positions created with the contract
-    uint public positionsLength = 1; // 0 is reserved
+    uint public positionsLength;
 
     /// @notice Sum of all active positions’ `lastUpdate * balance`
     uint public sumOfEntryTimes;
 
     /// @notice Time stamp of first stake event
-    uint private _initTime;
+    uint public initTime;
 
     /**
      * @notice Sum of all intervals’ (`rewards`/`stakingDuration`)
@@ -48,28 +48,23 @@ contract SunshineAndRainbows is Pausable, Recover {
 
     /**
      * @notice Hypothetical rewards accumulated by an ideal position whose
-     * `lastUpdate` equals `_initTime`, and `balance` equals one.
+     * `lastUpdate` equals `initTime`, and `balance` equals one.
      * @dev Refer to `sum of I` in the proof for more details.
      */
     uint private _idealPosition;
 
     struct Position {
+        /// @notice Amount of claimable rewards of the position
+        /// @dev Using `int` to support the LP extension
+        int reward;
         /// @notice Amount of tokens staked in the position
         uint balance;
-        /// @notice Amount of claimable rewards of the position
-        uint reward;
-        /// @notice Amount deducted from `position.reward` when claiming
-        uint surplus;
         /// @notice Last time the position was updated
         uint lastUpdate;
-        /// @notice Creation time of the position
-        uint initTime;
         /// @notice `_rewardsPerStakingDuration` on position’s last update
         uint rewardsPerStakingDuration;
         /// @notice `_idealPosition` on position’s last update
         uint idealPosition;
-        /// @notice ID of the parent position
-        uint parent;
         /// @notice Owner of the position
         address owner;
     }
@@ -85,96 +80,20 @@ contract SunshineAndRainbows is Pausable, Recover {
 
     /* ========== CONSTRUCTOR ========== */
 
-    constructor(
-        address _stakingToken,
-        address _rewardRegulator
-    ) Recover(_stakingToken) {
-        rewardRegulator = IRewardRegulator(_rewardRegulator);
+    constructor(address _stakingToken, address _rewardRegulator)
+        Recover(_stakingToken)
+    {
         stakingToken = _stakingToken;
+        rewardRegulator = IRewardRegulator(_rewardRegulator);
     }
 
-    /* ========== VIEWS ========== */
+    /* ========== EXTERNAL VIEWS ========== */
 
-    function pendingRewards(uint posId) external view returns (uint) {
+    function pendingRewards(uint posId) external view returns (int) {
         (uint x, uint y) = rewardVariables(
             rewardRegulator.getRewards(address(this))
         );
         return earned(posId, x, y);
-    }
-
-    /// @param posId position id
-    /// @return amount of reward tokens the account earned between its last
-    /// harvest and the contract’s last update
-    function earned(
-        uint posId,
-        uint idealPosition,
-        uint rewardsPerStakingDuration
-    ) private view returns (uint) {
-        Position memory position = positions[posId];
-        return
-            position.reward +
-            (idealPosition -
-                position.idealPosition -
-                (rewardsPerStakingDuration -
-                    position.rewardsPerStakingDuration) *
-                (position.lastUpdate - _initTime)) *
-            position.balance -
-            position.surplus;
-    }
-
-    function rewardVariables(uint rewards) private view returns (uint, uint) {
-        uint blockTime = block.timestamp;
-         // `stakingDuration` refers to `S` in the proof
-        uint stakingDuration = blockTime * totalSupply - sumOfEntryTimes;
-        return (
-            _idealPosition +
-                ((blockTime - _initTime) * rewards) /
-                stakingDuration,
-            _rewardsPerStakingDuration + rewards / stakingDuration
-        );
-    }
-
-    /* ========== INTERNAL FUNCTIONS ========== */
-
-    function updateRewardVariables() internal {
-        (_idealPosition, _rewardsPerStakingDuration) = rewardVariables(
-            rewardRegulator.setRewards()
-        );
-    }
-
-    function initialize() internal {
-        if (_initTime == 0) {
-            _initTime = block.timestamp;
-        }
-    }
-
-    function createPosition(address owner, uint parent)
-        internal
-        returns (uint)
-    {
-        uint posId = positionsLength;
-        positionsLength++;
-        userPositionsIndex[owner][userPositionsLengths[owner]] = posId;
-        userPositionsLengths[owner]++;
-        positions[posId].parent = parent;
-        positions[posId].initTime = block.timestamp;
-        positions[posId].owner = owner;
-        updatePosition(posId);
-        return posId;
-    }
-
-    function updatePosition(uint posId) internal {
-        if (positions[posId].lastUpdate != 0) {
-            positions[posId].reward = earned(
-                posId,
-                _idealPosition,
-                _rewardsPerStakingDuration
-            );
-            positions[posId].surplus = 0;
-        }
-        positions[posId].lastUpdate = block.timestamp;
-        positions[posId].idealPosition = _idealPosition;
-        positions[posId].rewardsPerStakingDuration = _rewardsPerStakingDuration;
     }
 
     /* ========== EXTERNAL FUNCTIONS ========== */
@@ -183,21 +102,22 @@ contract SunshineAndRainbows is Pausable, Recover {
      * @notice Harvests accumulated rewards of the user
      * @param posId ID of the position to be harvested from
      */
-    function harvest(uint posId) external {
+    function harvest(uint posId) public {
         Position memory position = positions[posId];
         address sender = msg.sender;
-        require(position.owner == sender, "not sender's position");
+        require(position.owner == sender, "SARS::harvest: unauthorized");
 
         updateRewardVariables();
         updatePosition(posId);
 
-        uint reward = positions[posId].reward;
+        int reward = positions[posId].reward;
 
-        require(reward != 0, "nothing to harvest");
+        assert(reward >= 0);
+        require(reward != 0, "SARS::harvest: no reward");
 
         positions[posId].reward = 0;
-        rewardRegulator.mint(sender, reward);
-        emit RewardPaid(posId, reward);
+        rewardRegulator.mint(sender, uint(reward));
+        emit Harvest(posId, reward);
 
         sumOfEntryTimes +=
             position.balance *
@@ -213,24 +133,22 @@ contract SunshineAndRainbows is Pausable, Recover {
         Position memory position = positions[posId];
         address sender = msg.sender;
 
-        require(amount > 0, "cannot withdraw 0");
-        require(position.owner == sender, "not sender's position");
-
-        // cannot withdraw if parent position was not updated
-        if (position.parent != 0) {
-            require(
-                position.initTime < positions[position.parent].lastUpdate,
-                "parent position was not updated"
-            );
-        }
+        require(amount > 0, "SARS::withdraw: zero amount");
+        require(position.owner == sender, "SARS::withdraw: unauthorized");
 
         updateRewardVariables();
         updatePosition(posId);
 
+        require(
+            positions[posId].balance >= amount,
+            "SARS::withdraw: insufficient balance"
+        );
+        unchecked {
+            positions[posId].balance -= amount;
+        }
         totalSupply -= amount;
-        positions[posId].balance -= amount;
         IERC20(stakingToken).safeTransfer(sender, amount);
-        emit Withdrawn(posId, amount);
+        emit Withdraw(posId, amount);
 
         sumOfEntryTimes +=
             block.timestamp *
@@ -245,15 +163,17 @@ contract SunshineAndRainbows is Pausable, Recover {
      * @param to Owner of the new position
      */
     function stake(uint amount, address to) external virtual whenNotPaused {
-        require(amount > 0, "cannot stake 0");
-        require(to != address(0), "cannot stake to zero address");
+        require(amount > 0, "SARS::stake: zero amount");
+        require(to != address(0), "SARS::stake: bad recipient");
 
         // if this is the first stake event, initialize
-        initialize();
+        if (initTime == 0) {
+            initTime = block.timestamp;
+        } else {
+            updateRewardVariables();
+        }
 
-        updateRewardVariables();
-
-        uint posId = createPosition(to, 0);
+        uint posId = createPosition(to);
 
         totalSupply += amount;
         positions[posId].balance += amount;
@@ -262,14 +182,80 @@ contract SunshineAndRainbows is Pausable, Recover {
             address(this),
             amount
         );
-        emit Staked(posId, amount);
+        emit Stake(posId, amount);
 
         sumOfEntryTimes += block.timestamp * amount;
     }
 
+    /* ========== INTERNAL VIEWS ========== */
+
+    /// @param posId position id
+    /// @return amount of reward tokens the account earned between its last
+    /// harvest and the contract’s last update
+    function earned(
+        uint posId,
+        uint idealPosition,
+        uint rewardsPerStakingDuration
+    ) private view returns (int) {
+        Position memory position = positions[posId];
+        return
+            int(
+                (idealPosition -
+                    position.idealPosition -
+                    (rewardsPerStakingDuration -
+                        position.rewardsPerStakingDuration) *
+                    (position.lastUpdate - initTime)) * position.balance
+            ) + position.reward;
+    }
+
+    function rewardVariables(uint rewards) private view returns (uint, uint) {
+        // `stakingDuration` refers to `S` in the proof
+        uint stakingDuration = block.timestamp * totalSupply - sumOfEntryTimes;
+        return (
+            _idealPosition +
+                ((block.timestamp - initTime) * rewards) /
+                stakingDuration,
+            _rewardsPerStakingDuration + rewards / stakingDuration
+        );
+    }
+
+    /* ========== INTERNAL FUNCTIONS ========== */
+
+    function updateRewardVariables() internal {
+        if (totalSupply > 0) {
+            (_idealPosition, _rewardsPerStakingDuration) = rewardVariables(
+                rewardRegulator.setRewards()
+            );
+        }
+    }
+
+    function createPosition(address owner) internal returns (uint) {
+        positionsLength++; // posIds start from 1
+        userPositionsIndex[owner][
+            userPositionsLengths[owner]
+        ] = positionsLength;
+        userPositionsLengths[owner]++;
+        positions[positionsLength].owner = owner;
+        updatePosition(positionsLength);
+        return positionsLength;
+    }
+
+    function updatePosition(uint posId) internal {
+        if (positions[posId].lastUpdate != 0) {
+            positions[posId].reward = earned(
+                posId,
+                _idealPosition,
+                _rewardsPerStakingDuration
+            );
+        }
+        positions[posId].lastUpdate = block.timestamp;
+        positions[posId].idealPosition = _idealPosition;
+        positions[posId].rewardsPerStakingDuration = _rewardsPerStakingDuration;
+    }
+
     /* ========== EVENTS ========== */
 
-    event RewardPaid(uint position, uint reward);
-    event Staked(uint position, uint amount);
-    event Withdrawn(uint position, uint amount);
+    event Harvest(uint position, int reward);
+    event Stake(uint position, uint amount);
+    event Withdraw(uint position, uint amount);
 }

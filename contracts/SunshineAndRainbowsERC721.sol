@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPLv3
 pragma solidity ^0.8.0;
-/*
 
 import "./SunshineAndRainbows.sol";
 
-contract ERC721StakingRewards is SunshineAndRainbows {
+contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
     mapping(uint => mapping(uint => uint)) private _tokensOf;
     mapping(uint => uint) private _tokensIndex;
     mapping(uint => uint) public ownerOf;
@@ -22,50 +21,60 @@ contract ERC721StakingRewards is SunshineAndRainbows {
         return tokens;
     }
 
-    function stakeERC721(
-        uint[] memory tokens,
-        uint posId,
-        address to
-    ) external whenNotPaused onlyPositionOwner(posId, msg.sender) update(0) {
-        uint amount = tokens.length;
-        require(amount > 0, "cannot stake 0");
-        address sender = msg.sender;
-        if (to == address(0)) {
-            to = sender;
-        }
-        if (posId == 0) {
-            posId = createPosition(to, 0);
-        }
-        for (uint i; i < amount; ++i) {
-            uint tokenId = tokens[i];
-            uint balance = positions[posId].balance;
-            _tokensOf[posId][balance] = tokenId;
-            _tokensIndex[tokenId] = balance;
-            ownerOf[tokenId] = posId;
-            positions[posId].balance++;
-            IERC721(stakingToken).transferFrom(sender, address(this), tokenId);
-        }
-        totalSupply += amount;
-        emit Staked(sender, amount);
-    }
-
-    function withdrawERC721(uint[] memory tokens, uint posId)
-        public
-        onlyPositionOwner(posId, msg.sender)
-        update(posId)
+    function stakeERC721(uint[] memory tokens, address to)
+        external
+        whenNotPaused
     {
         uint amount = tokens.length;
-        require(amount > 0, "cannot withdraw 0");
-        require(posId != 0, "posId 0 is reserved for new deposits");
+        require(amount > 0, "SARS::stake: zero amount");
+        require(to != address(0), "SARS::stake: bad recipient");
+
+        // if this is the first stake event, initialize
+        if (initTime == 0) {
+            initTime = block.timestamp;
+        } else {
+            updateRewardVariables();
+        }
+
+        uint posId = createPosition(to);
+
+        for (uint i; i < amount; ++i) {
+            uint tokenId = tokens[i];
+            _tokensOf[posId][i] = tokenId;
+            _tokensIndex[tokenId] = i;
+            ownerOf[tokenId] = posId;
+            IERC721(stakingToken).transferFrom(
+                msg.sender,
+                address(this),
+                tokenId
+            );
+        }
+        positions[posId].balance = amount;
+        totalSupply += amount;
+        emit Stake(posId, amount);
+
+        sumOfEntryTimes += block.timestamp * amount;
+    }
+
+    function withdrawERC721(uint[] memory tokens, uint posId) external {
+        Position memory position = positions[posId];
+        uint amount = tokens.length;
+
+        require(amount > 0, "SARS::withdraw: zero amount");
+        require(position.owner == msg.sender, "SARS::withdraw: unauthorized");
+
+        updateRewardVariables();
+        updatePosition(posId);
+
         for (uint i; i < amount; ++i) {
             // store the last token in the index of the token to delete, and
             // then delete the last slot (swap and pop).
             uint tokenId = tokens[i];
-            uint lastTokenIndex = positions[posId].balance - 1;
+            uint lastTokenIndex = position.balance - i - 1;
             uint tokenIndex = _tokensIndex[tokenId];
             require(
                 _tokensOf[posId][tokenIndex] == tokenId,
-                "ERC721StakingRewards: does not own token"
+                "SARS::withdraw: wrong tokenId"
             );
             // do not perform swap when the token to delete is the last token
             if (tokenIndex != lastTokenIndex) {
@@ -76,28 +85,33 @@ contract ERC721StakingRewards is SunshineAndRainbows {
             delete _tokensIndex[tokenId];
             delete _tokensOf[posId][lastTokenIndex];
             delete ownerOf[tokenId];
-            positions[posId].balance--;
             IERC721(stakingToken).transferFrom(
                 address(this),
                 msg.sender,
                 tokenId
             );
         }
+        positions[posId].balance = position.balance - amount;
         totalSupply -= amount;
-        emit Withdrawn(msg.sender, amount);
+        emit Withdraw(posId, amount);
+
+        sumOfEntryTimes +=
+            block.timestamp *
+            positions[posId].balance -
+            position.lastUpdate *
+            position.balance;
     }
 
-    function withdraw(uint, uint) public pure override {
-        revert("SunshineAndRainbows::withdraw: use withdrawERC721");
+    function withdraw(uint, uint) external pure override {
+        revert("SARS::stake: use `withdrawERC721'");
     }
 
-    function stake(uint, uint, address) public pure override {
-        revert("SunshineAndRainbows::stake: use stakeERC721");
+    function stake(uint, address) external pure override {
+        revert("SARS::stake: use `stakeERC721'");
     }
 
-    //function exit() external {
-    //    withdraw(tokensOf(msg.sender));
+    //function exit() external override {
+    //    withdrawERC721(tokensOf(msg.sender));
     //    harvest();
     //}
 }
-*/
