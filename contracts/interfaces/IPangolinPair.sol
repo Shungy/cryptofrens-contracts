@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.5.0;
+pragma solidity ^0.8.0;
 
 interface IPangolinPair {
     event Approval(address indexed owner, address indexed spender, uint value);
@@ -16,7 +16,9 @@ interface IPangolinPair {
     function transfer(address to, uint value) external returns (bool);
     function transferFrom(address from, address to, uint value) external returns (bool);
 
+    // solhint-disable-next-line func-name-mixedcase
     function DOMAIN_SEPARATOR() external view returns (bytes32);
+    // solhint-disable-next-line func-name-mixedcase
     function PERMIT_TYPEHASH() external pure returns (bytes32);
     function nonces(address owner) external view returns (uint);
 
@@ -34,6 +36,7 @@ interface IPangolinPair {
     );
     event Sync(uint112 reserve0, uint112 reserve1);
 
+    // solhint-disable-next-line func-name-mixedcase
     function MINIMUM_LIQUIDITY() external pure returns (uint);
     function factory() external view returns (address);
     function token0() external view returns (address);

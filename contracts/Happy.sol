@@ -18,6 +18,7 @@ contract Happy is ERC20Burnable, Ownable, Pausable {
 
     bool public hardcapped;
 
+    // solhint-disable-next-line no-empty-blocks
     constructor() ERC20("Happiness", "HAPPY") {}
 
     function mintableTotal() external view returns (uint) {
