@@ -3,6 +3,14 @@
 // solhint-disable not-rely-on-time
 pragma solidity ^0.8.0;
 
+//import "./interfaces/IPangolinPair.sol";
+//import "./interfaces/IPangolinRouter.sol";
+
+/*
+    /// @notice Router used for adding liquidity in `harvestAndStake` function
+    IPangolinRouter public immutable router;
+*/
+
 //    /**
 //     * @notice Creates a new position and stakes `amount` tokens to it
 //     * @param amount Amount of tokens to stake

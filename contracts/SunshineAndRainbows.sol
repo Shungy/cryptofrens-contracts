@@ -4,8 +4,6 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/security/Pausable.sol";
-import "./interfaces/IPangolinPair.sol";
-import "./interfaces/IPangolinRouter.sol";
 import "./Recover.sol";
 
 interface IRewardRegulator {
@@ -27,14 +25,8 @@ contract SunshineAndRainbows is Pausable, Recover {
     /// @notice The contract that determines the rewards of this contract
     IRewardRegulator public immutable rewardRegulator;
 
-    /// @notice Router used for adding liquidity in `harvestAndStake` function
-    IPangolinRouter public immutable router;
-
     /// @notice The token that can be staked in the contract
     address public stakingToken;
-
-    /// @notice Time of last interaction (i.e.: stake, harvest, withdraw)
-    uint public lastUpdate;
 
     /// @notice Total amount of tokens staked in the contract
     uint public totalSupply;
@@ -67,7 +59,7 @@ contract SunshineAndRainbows is Pausable, Recover {
         /// @notice Amount of claimable rewards of the position
         uint reward;
         /// @notice Amount deducted from `position.reward` when claiming
-        uint rewardDebt;
+        uint surplus;
         /// @notice Last time the position was updated
         uint lastUpdate;
         /// @notice Creation time of the position
@@ -95,12 +87,10 @@ contract SunshineAndRainbows is Pausable, Recover {
 
     constructor(
         address _stakingToken,
-        address _rewardRegulator,
-        address _router
+        address _rewardRegulator
     ) Recover(_stakingToken) {
         rewardRegulator = IRewardRegulator(_rewardRegulator);
         stakingToken = _stakingToken;
-        router = IPangolinRouter(_router);
     }
 
     /* ========== VIEWS ========== */
@@ -129,21 +119,12 @@ contract SunshineAndRainbows is Pausable, Recover {
                     position.rewardsPerStakingDuration) *
                 (position.lastUpdate - _initTime)) *
             position.balance -
-            position.rewardDebt;
+            position.surplus;
     }
 
     function rewardVariables(uint rewards) private view returns (uint, uint) {
         uint blockTime = block.timestamp;
-        /*
-         * `stakingDuration` refers to `S` in the proof. However the proof
-         * does not derive the expression below. We will derive that here.
-         * S = sum(duration_i * balance_i)
-         *   = sum((blockTime - entryTime_i) * balance_i)
-         *   = sum(blockTime * balance_i - entryTime_i * balance_i)
-         *   = sum(blockTime * balance_i) - sum(entryTime_i * balance_i)
-         *   = blockTime * sum(balance_i) - sum(entryTime_i * balance_i)
-         *   = blockTime * totalSupply - sumOfEntryTimes
-         */
+         // `stakingDuration` refers to `S` in the proof
         uint stakingDuration = blockTime * totalSupply - sumOfEntryTimes;
         return (
             _idealPosition +
@@ -156,18 +137,13 @@ contract SunshineAndRainbows is Pausable, Recover {
     /* ========== INTERNAL FUNCTIONS ========== */
 
     function updateRewardVariables() internal {
-        uint blockTime = block.timestamp;
-        if (lastUpdate != blockTime) {
-            (_idealPosition, _rewardsPerStakingDuration) = rewardVariables(
-                rewardRegulator.setRewards()
-            );
-            lastUpdate = blockTime;
-        }
+        (_idealPosition, _rewardsPerStakingDuration) = rewardVariables(
+            rewardRegulator.setRewards()
+        );
     }
 
     function initialize() internal {
-        if (lastUpdate == 0) {
-            lastUpdate = block.timestamp;
+        if (_initTime == 0) {
             _initTime = block.timestamp;
         }
     }
@@ -183,6 +159,7 @@ contract SunshineAndRainbows is Pausable, Recover {
         positions[posId].parent = parent;
         positions[posId].initTime = block.timestamp;
         positions[posId].owner = owner;
+        updatePosition(posId);
         return posId;
     }
 
@@ -193,7 +170,7 @@ contract SunshineAndRainbows is Pausable, Recover {
                 _idealPosition,
                 _rewardsPerStakingDuration
             );
-            positions[posId].rewardDebt = 0;
+            positions[posId].surplus = 0;
         }
         positions[posId].lastUpdate = block.timestamp;
         positions[posId].idealPosition = _idealPosition;
@@ -274,10 +251,9 @@ contract SunshineAndRainbows is Pausable, Recover {
         // if this is the first stake event, initialize
         initialize();
 
-        uint posId = createPosition(to, 0);
-
         updateRewardVariables();
-        updatePosition(posId);
+
+        uint posId = createPosition(to, 0);
 
         totalSupply += amount;
         positions[posId].balance += amount;
