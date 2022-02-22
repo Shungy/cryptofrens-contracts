@@ -77,7 +77,7 @@ contract SunshineAndRainbows is Pausable, Recover {
         /// @notice `_idealPosition` on position’s last update
         uint idealPosition;
         /// @notice ID of the parent position
-        uint parentPosId;
+        uint parent;
         /// @notice Owner of the position
         address owner;
     }
@@ -89,7 +89,7 @@ contract SunshineAndRainbows is Pausable, Recover {
     mapping(address => uint) public userPositionsLengths;
 
     /// @notice A list of all positions of an account
-    mapping(address => mapping(uint => uint)) private userPositionsIndex;
+    mapping(address => mapping(uint => uint)) public userPositionsIndex;
 
     /* ========== CONSTRUCTOR ========== */
 
@@ -105,32 +105,8 @@ contract SunshineAndRainbows is Pausable, Recover {
 
     /* ========== VIEWS ========== */
 
-    function getRewardVariables() external view returns (uint, uint) {
-        return rewardVariables(rewardRegulator.getRewards(address(this)));
-    }
-
-    function userPositions(
-        address owner,
-        uint indexFrom,
-        uint indexTo
-    ) external view returns (uint[] memory) {
-        if (indexTo >= userPositionsLengths[owner]) {
-            indexTo = userPositionsLengths[owner] - 1;
-        }
-        require(indexTo >= indexFrom, "invalid index bounds");
-        uint[] memory posIds;
-        uint i;
-        while (indexTo >= indexFrom) {
-            posIds[i] = userPositionsIndex[owner][indexTo];
-            indexTo++;
-            i++;
-        }
-        return posIds;
-    }
-
     function pendingRewards(uint posId) external view returns (uint) {
-        uint rewards = rewardRegulator.getRewards(address(this));
-        (uint x, uint y) = rewardVariables(rewards);
+        (uint x, uint y) = rewardVariables(rewardRegulator.getRewards(address(this)));
         return earned(posId, x, y);
     }
 
@@ -142,10 +118,10 @@ contract SunshineAndRainbows is Pausable, Recover {
         uint idealPosition,
         uint rewardsPerStakingDuration
     ) private view returns (uint) {
-        if (posId == 0 || posId > positionsLength) {
+        Position memory position = positions[posId];
+        if (position.lastUpdate == 0) {
             return 0;
         }
-        Position memory position = positions[posId];
         return
             position.reward +
             (idealPosition -
@@ -155,192 +131,6 @@ contract SunshineAndRainbows is Pausable, Recover {
                 (position.lastUpdate - _initTime)) *
             position.balance -
             position.rewardDebt;
-    }
-
-    /* ========== MUTATIVE FUNCTIONS ========== */
-
-    /**
-     * @notice Harvests accumulated rewards of the user
-     * @param posId ID of the position to be harvested from
-     */
-    function harvest(uint posId) public update(posId) {
-        Position memory position = positions[posId];
-        address sender = msg.sender;
-        require(position.owner == sender, "not sender's position");
-        uint reward = position.reward;
-        if (reward != 0) {
-            positions[posId].reward = 0;
-            rewardRegulator.mint(sender, reward);
-            emit RewardPaid(posId, reward);
-        }
-    }
-
-    /**
-     * @notice Stakes `amount` tokens to existing position
-     * @param amount Amount of tokens to stake
-     * @param posId ID of the position to stake
-     */
-    function stakeIntoExistingPosition(uint amount, uint posId)
-        external
-        virtual
-        whenNotPaused
-        update(posId)
-    {
-        require(amount > 0, "cannot stake 0");
-        address sender = msg.sender;
-        require(positions[posId].owner == sender, "not sender's position");
-        totalSupply += amount;
-        positions[posId].balance += amount;
-        IERC20(stakingToken).safeTransferFrom(sender, address(this), amount);
-        emit Staked(posId, amount);
-    }
-
-    /**
-     * @notice Creates a new position and stakes `amount` tokens to it
-     * @param amount Amount of tokens to stake
-     * @param to Owner of the new position
-     */
-    function stakeIntoNewPosition(uint amount, address to)
-        external
-        virtual
-        whenNotPaused
-        update(createPosition(to, 0))
-    {
-        require(amount > 0, "cannot stake 0");
-        require(to != address(0), "cannot stake to zero address");
-        address sender = msg.sender;
-        uint posId = positionsLength;
-        totalSupply += amount;
-        positions[posId].balance += amount;
-        IERC20(stakingToken).safeTransferFrom(sender, address(this), amount);
-        emit Staked(posId, amount);
-    }
-
-    /**
-     * @notice Creates a new position and stakes `amount` tokens to it
-     * @param amount Amount of tokens to stake
-     * @param to Owner of the new position
-     * @param parentPosId Parent of this position
-     */
-    function stakeIntoNewPositionWithParent(
-        uint amount,
-        address to,
-        uint parentPosId
-    ) private update(createPosition(to, parentPosId)) {
-        uint posId = positionsLength;
-        totalSupply += amount;
-        positions[posId].balance += amount;
-        emit Staked(posId, amount);
-    }
-
-    /**
-     * @notice Withdraws `amount` tokens from `posId`
-     * @param amount Amount of tokens to withdraw
-     * @param posId ID of the position to withdraw from
-     */
-    function withdraw(uint amount, uint posId) public virtual update(posId) {
-        address sender = msg.sender;
-        Position memory position = positions[posId];
-        require(amount > 0, "cannot withdraw 0");
-        require(position.owner == sender, "not sender's position");
-        if (position.parentPosId != 0) {
-            require(
-                position.initTime < positions[position.parentPosId].lastUpdate,
-                "parent position was not updated"
-            );
-        }
-        totalSupply -= amount;
-        positions[posId].balance -= amount;
-        IERC20(stakingToken).safeTransfer(sender, amount);
-        emit Withdrawn(posId, amount);
-    }
-
-    // special harvest method that does not reset APR
-    function harvestAndStake(uint posId, address to)
-        public
-        virtual
-        whenNotPaused
-    {
-        Position memory position = positions[posId];
-        IPangolinPair pair = IPangolinPair(stakingToken);
-        address sender = msg.sender;
-        uint blockTime = block.timestamp;
-
-        require(position.owner == sender, "not sender's position");
-        require(to != address(0), "cannot stake to zero address");
-        require(address(router) != address(0), "router not defined");
-
-        uint reward;
-
-        if (position.lastUpdate != blockTime) {
-            if (lastUpdate != blockTime) {
-                uint rewards = rewardRegulator.setRewards();
-                (_idealPosition, _rewardsPerStakingDuration) = rewardVariables(
-                    rewards
-                );
-            }
-            reward = earned(posId, _idealPosition, _rewardsPerStakingDuration);
-
-            // we will not update the position so we must record reward as debt
-            positions[posId].rewardDebt = reward;
-        }
-
-        require(reward != 0, "nothing to claim");
-
-        rewardRegulator.mint(address(this), reward);
-        emit RewardPaid(posId, reward);
-
-        (uint reserve0, uint reserve1, ) = pair.getReserves();
-        require(
-            reserve0 > 1000 && reserve1 > 1000,
-            "Liquidity pair reserves too low"
-        );
-
-        uint pairAmount;
-        address pairToken;
-        if (pair.token0() == stakingToken) {
-            pairToken = pair.token1();
-            pairAmount = (reward * reserve1) / reserve0;
-        } else {
-            require(
-                pair.token1() == stakingToken,
-                "Staking token not present in liquidity pair"
-            );
-            pairToken = pair.token0();
-            pairAmount = (reward * reserve0) / reserve1;
-        }
-
-        IERC20(pairToken).safeTransferFrom(sender, address(this), pairAmount);
-
-        (, , uint amount) = router.addLiquidity(
-            stakingToken, // tokenA
-            pairToken, // tokenB
-            reward, // amountADesired
-            pairAmount, // amountBDesired
-            1, // amountAMin
-            1, // amountBMin
-            address(this), // to
-            block.timestamp // deadline
-        );
-
-        require(amount > 0, "cannot stake 0");
-
-        stakeIntoNewPositionWithParent(amount, sender, posId);
-    }
-
-    function createPosition(address owner, uint parentPosId)
-        internal
-        returns (uint)
-    {
-        uint posId = positionsLength;
-        positionsLength++;
-        userPositionsIndex[owner][userPositionsLengths[owner]] = posId;
-        userPositionsLengths[owner]++;
-        positions[posId].parentPosId = parentPosId;
-        positions[posId].owner = owner;
-        positions[posId].initTime = block.timestamp;
-        updatePosition(posId);
-        return posId;
     }
 
     function rewardVariables(uint rewards) private view returns (uint, uint) {
@@ -364,21 +154,112 @@ contract SunshineAndRainbows is Pausable, Recover {
         );
     }
 
+    /* ========== INTERNAL FUNCTIONS ========== */
+
+    function updateRewardVariables() internal {
+        uint blockTime = block.timestamp;
+        if (lastUpdate != blockTime) {
+            (_idealPosition, _rewardsPerStakingDuration) =
+                rewardVariables(rewardRegulator.setRewards());
+            lastUpdate = blockTime;
+        }
+    }
+
+    function createPosition(address owner, uint parent)
+        internal
+        returns (uint)
+    {
+        uint posId = positionsLength;
+        positionsLength++;
+        userPositionsIndex[owner][userPositionsLengths[owner]] = posId;
+        userPositionsLengths[owner]++;
+        positions[posId].parent = parent;
+        positions[posId].initTime = block.timestamp;
+        positions[posId].owner = owner;
+        return posId;
+    }
+
     function updatePosition(uint posId) private {
+        positions[posId].reward = earned(
+            posId,
+            _idealPosition,
+            _rewardsPerStakingDuration
+        );
         positions[posId].lastUpdate = block.timestamp;
         positions[posId].idealPosition = _idealPosition;
         positions[posId].rewardDebt = 0;
         positions[posId].rewardsPerStakingDuration = _rewardsPerStakingDuration;
     }
 
-    /* ========== MODIFIERS ========== */
+    /* ========== EXTERNAL FUNCTIONS ========== */
 
-    modifier update(uint posId) {
-        uint blockTime = block.timestamp;
-
+    /**
+     * @notice Harvests accumulated rewards of the user
+     * @param posId ID of the position to be harvested from
+     */
+    function harvest(uint posId) external {
         Position memory position = positions[posId];
+        address sender = msg.sender;
+        require(position.owner == sender, "not sender's position");
 
-        require(position.initTime != 0, "position does not exist");
+        updateRewardVariables();
+        updatePosition(posId);
+
+        uint reward = positions[posId].reward;
+
+        require(reward != 0, "nothing to harvest");
+
+        positions[posId].reward = 0;
+        rewardRegulator.mint(sender, reward);
+        emit RewardPaid(posId, reward);
+
+        _sumOfEntryTimes += position.balance * (block.timestamp - position.lastUpdate);
+    }
+
+    /**
+     * @notice Withdraws `amount` tokens from `posId`
+     * @param amount Amount of tokens to withdraw
+     * @param posId ID of the position to withdraw from
+     */
+    function withdraw(uint amount, uint posId) external virtual {
+        Position memory position = positions[posId];
+        address sender = msg.sender;
+
+        require(amount > 0, "cannot withdraw 0");
+        require(position.owner == sender, "not sender's position");
+
+        // cannot withdraw if parent position was not updated
+        if (position.parent != 0) {
+            require(
+                position.initTime < positions[position.parent].lastUpdate,
+                "parent position was not updated"
+            );
+        }
+
+        updateRewardVariables();
+        updatePosition(posId);
+
+        totalSupply -= amount;
+        positions[posId].balance -= amount;
+        IERC20(stakingToken).safeTransfer(sender, amount);
+        emit Withdrawn(posId, amount);
+
+        _sumOfEntryTimes += block.timestamp * positions[posId].balance - position.lastUpdate * position.balance;
+    }
+
+    /**
+     * @notice Creates a new position and stakes `amount` tokens to it
+     * @param amount Amount of tokens to stake
+     * @param to Owner of the new position
+     */
+    function stake(uint amount, address to)
+        external
+        virtual
+        whenNotPaused
+    {
+        require(amount > 0, "cannot stake 0");
+        require(to != address(0), "cannot stake to zero address");
+        uint blockTime = block.timestamp;
 
         // if this is the first stake event, initialize
         if (lastUpdate == 0) {
@@ -386,26 +267,17 @@ contract SunshineAndRainbows is Pausable, Recover {
             _initTime = blockTime;
         }
 
-        if (position.lastUpdate != blockTime) {
-            if (lastUpdate != blockTime) {
-                uint rewards = rewardRegulator.setRewards();
-                (_idealPosition, _rewardsPerStakingDuration) = rewardVariables(
-                    rewards
-                );
-            }
-            positions[posId].reward = earned(
-                posId,
-                _idealPosition,
-                _rewardsPerStakingDuration
-            );
-            updatePosition(posId);
-        }
+        uint posId = createPosition(to, 0);
 
-        _sumOfEntryTimes -= position.lastUpdate * position.balance;
-        _;
-        _sumOfEntryTimes += blockTime * positions[posId].balance;
+        updateRewardVariables();
+        updatePosition(posId);
 
-        lastUpdate = blockTime;
+        totalSupply += amount;
+        positions[posId].balance += amount;
+        IERC20(stakingToken).safeTransferFrom(msg.sender, address(this), amount);
+        emit Staked(posId, amount);
+
+        _sumOfEntryTimes += blockTime * amount;
     }
 
     /* ========== EVENTS ========== */
