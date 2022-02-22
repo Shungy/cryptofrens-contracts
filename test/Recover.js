@@ -103,7 +103,7 @@ describe("Recover.sol", function () {
   //////////////////////////////
   //     recoverERC721
   //////////////////////////////
-  describe("recoverERC20", function () {
+  describe("recoverERC721", function () {
     it("unauthorized cannot recover", async function () {
       recover = await this.recover.connect(this.unauthorized);
 
@@ -151,7 +151,7 @@ describe("Recover.sol", function () {
       expect(await this.ERC721.balanceOf(this.admin.address)).to.equal("1");
 
       await expect(this.recover.recoverERC721(this.ERC721.address, "1"))
-        .to.be.revertedWith("ERC721: operator query for nonexistent token");
+        .to.be.revertedWith("ERC721: transfer caller is not owner nor approved");
 
       expect(await this.ERC721.balanceOf(this.recover.address)).to.equal("0");
       expect(await this.ERC721.balanceOf(this.admin.address)).to.equal("1");
