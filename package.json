@@ -8,6 +8,8 @@
     "deploy": "export LANG=C && npx hardhat run scripts/deploy.js > .contracts.env",
     "node": "export LANG=C && npx hardhat node",
     "test": "export LANG=C && npx hardhat test",
+    "lint": "solhint 'contracts/**/*.sol'",
+    "graph": "surya graph contracts/*.sol | dot -Tpng > graph.png && sxiv graph.png",
     "coverage": "export LANG=C && npx hardhat coverage"
   },
   "author": "",
@@ -23,8 +25,8 @@
     "ethers": "^5.5.1",
     "hardhat": "^2.7.0",
     "prettier-plugin-solidity": "^1.0.0-beta.19",
-    "solgraph": "^0.3.3",
-    "solidity-coverage": "^0.7.20"
+    "solidity-coverage": "^0.7.20",
+    "surya": "^0.4.5"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.4.0"

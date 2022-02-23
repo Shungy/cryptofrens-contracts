@@ -586,7 +586,7 @@ describe("SunshineAndRainbows.sol", function () {
   //////////////////////////////
   //     exit
   //////////////////////////////
-  describe.only("exit", function () {
+  describe("exit", function () {
     it("exits one position", async function () {
       await this.pgl.approve(this.sunshine.address, TOTAL_SUPPLY);
 
