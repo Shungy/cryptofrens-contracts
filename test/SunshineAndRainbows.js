@@ -584,6 +584,59 @@ describe("SunshineAndRainbows.sol", function () {
   });
 
   //////////////////////////////
+  //     exit
+  //////////////////////////////
+  describe.only("exit", function () {
+    it("exits one position", async function () {
+      await this.pgl.approve(this.sunshine.address, TOTAL_SUPPLY);
+
+      expect(await this.sunshine.stake("1", this.admin.address)).to.emit(
+        this.sunshine,
+        "Stake"
+      );
+
+      expect(await this.sunshine.exit([1])).to.emit(
+        this.sunshine,
+        "Withdraw"
+      );
+    });
+    it("exits two positions", async function () {
+      await this.pgl.approve(this.sunshine.address, TOTAL_SUPPLY);
+
+      expect(await this.sunshine.stake("1", this.admin.address)).to.emit(
+        this.sunshine,
+        "Stake"
+      );
+
+      expect(await this.sunshine.stake("1", this.admin.address)).to.emit(
+        this.sunshine,
+        "Stake"
+      );
+
+      expect(await this.sunshine.exit([1,2])).to.emit(
+        this.sunshine,
+        "Withdraw"
+      );
+    });
+    it("cannot exit more than 20 positions", async function () {
+      await this.pgl.approve(this.sunshine.address, TOTAL_SUPPLY);
+
+      var arr = [];
+      for (var i = 1; i < 22; i++) {
+        expect(await this.sunshine.stake("1", this.admin.address)).to.emit(
+          this.sunshine,
+          "Stake"
+        );
+        arr[i - 1] = i;
+      }
+
+      await expect(this.sunshine.exit(arr)).to.be.revertedWith(
+        "SARS::exit: too many positions"
+      );
+    });
+  });
+
+  //////////////////////////////
   //     Simulation
   //////////////////////////////
   describe.skip("Simulation", function () {

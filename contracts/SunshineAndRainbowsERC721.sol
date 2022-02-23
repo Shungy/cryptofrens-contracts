@@ -104,7 +104,7 @@ contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
             position.balance;
     }
 
-    function withdraw(uint, uint) external pure override {
+    function withdraw(uint, uint) public pure override {
         revert("SARS::stake: use `withdrawERC721'");
     }
 

@@ -6,6 +6,8 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "./Recover.sol";
 
+import "hardhat/console.sol";
+
 interface IRewardRegulator {
     function getRewards(address account) external view returns (uint);
 
@@ -39,6 +41,10 @@ contract SunshineAndRainbows is Pausable, Recover {
 
     /// @notice Time stamp of first stake event
     uint public initTime;
+
+    /// @notice Last interaction time (i.e. harvest, stake, withdraw)
+    /// @dev Recorded only for saving gas on mass exit or harvest
+    uint private lastUpdate;
 
     /**
      * @notice Sum of all intervals’ (`rewards`/`stakingDuration`)
@@ -128,7 +134,7 @@ contract SunshineAndRainbows is Pausable, Recover {
      * @param amount Amount of tokens to withdraw
      * @param posId ID of the position to withdraw from
      */
-    function withdraw(uint amount, uint posId) external virtual {
+    function withdraw(uint amount, uint posId) public virtual {
         Position memory position = positions[posId];
         address sender = msg.sender;
 
@@ -185,7 +191,15 @@ contract SunshineAndRainbows is Pausable, Recover {
         sumOfEntryTimes += (block.timestamp * amount);
     }
 
-    //function exit() external virtual
+    function exit(uint[] memory posIds) external virtual {
+        uint length = posIds.length;
+        require(length < 21, "SARS::exit: too many positions");
+        for (uint i; i < length; ++i) {
+            uint posId = posIds[i];
+            withdraw(positions[posId].balance, posId);
+            harvest(posId);
+        }
+    }
 
     /* ========== INTERNAL VIEWS ========== */
 
@@ -222,10 +236,11 @@ contract SunshineAndRainbows is Pausable, Recover {
     /* ========== INTERNAL FUNCTIONS ========== */
 
     function updateRewardVariables() internal {
-        if (totalSupply > 0) {
+        if (lastUpdate != block.timestamp && totalSupply > 0) {
             (_idealPosition, _rewardsPerStakingDuration) = rewardVariables(
                 rewardRegulator.setRewards()
             );
+            lastUpdate = block.timestamp;
         }
     }
 
