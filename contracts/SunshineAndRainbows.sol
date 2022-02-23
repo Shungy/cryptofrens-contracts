@@ -185,6 +185,8 @@ contract SunshineAndRainbows is Pausable, Recover {
         sumOfEntryTimes += (block.timestamp * amount);
     }
 
+    //function exit() external virtual
+
     /* ========== INTERNAL VIEWS ========== */
 
     /// @param posId position id

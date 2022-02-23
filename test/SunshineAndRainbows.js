@@ -403,7 +403,7 @@ describe("SunshineAndRainbows.sol", function () {
   //////////////////////////////
   //     harvest
   //////////////////////////////
-  describe.only("harvest", function () {
+  describe("harvest", function () {
     it("harvests after staking one to sender", async function () {
       await this.pgl.approve(this.sunshine.address, TOTAL_SUPPLY);
 
@@ -483,7 +483,9 @@ describe("SunshineAndRainbows.sol", function () {
       );
 
       expect(await this.happy.balanceOf(this.admin.address)).to.equal("0");
-      expect(await this.happy.balanceOf(this.unauthorized.address)).to.equal("0");
+      expect(await this.happy.balanceOf(this.unauthorized.address)).to.equal(
+        "0"
+      );
       expect(await this.happy.totalSupply()).to.equal("0");
       expect(await this.sunshine.totalSupply()).to.equal("1");
       expect(await this.pgl.balanceOf(this.sunshine.address)).to.equal("1");
@@ -495,5 +497,95 @@ describe("SunshineAndRainbows.sol", function () {
       var position = await this.sunshine.positions("1");
       expect(position.balance).to.equal("1");
     });
+    it("cannot harvest zero", async function () {
+      await this.pgl.approve(this.sunshine.address, TOTAL_SUPPLY);
+
+      expect(await this.sunshine.stake("1", this.admin.address)).to.emit(
+        this.sunshine,
+        "Stake"
+      );
+
+      var blockNumber = await ethers.provider.getBlockNumber();
+      var initTime = (await ethers.provider.getBlock(blockNumber)).timestamp;
+
+      expect(await this.sunshine.initTime()).to.equal(initTime);
+      expect(await this.pgl.balanceOf(this.sunshine.address)).to.equal("1");
+
+      expect(await this.sunshine.withdraw("1", "1")).to.emit(
+        this.sunshine,
+        "Withdraw"
+      );
+
+      blockNumber = await ethers.provider.getBlockNumber();
+      var secondStake = (await ethers.provider.getBlock(blockNumber)).timestamp;
+
+      expect(await this.sunshine.totalSupply()).to.equal("0");
+      expect(await this.sunshine.positionsLength()).to.equal("1");
+      expect(await this.sunshine.sumOfEntryTimes()).to.equal("0");
+      expect(await this.pgl.balanceOf(this.sunshine.address)).to.equal("0");
+      expect(await this.pgl.balanceOf(this.admin.address)).to.equal(
+        TOTAL_SUPPLY
+      );
+
+      var position = await this.sunshine.positions("1");
+      var interval = secondStake - initTime;
+      var rewards = getRewards(secondStake - this.minterInit);
+
+      var [idealPosition, rewardsPerStakingDuration] = updateRewardVariables(
+        rewards,
+        interval,
+        interval
+      );
+
+      expect(position.reward).to.equal(rewards);
+      expect(position.balance).to.equal("0");
+      expect(position.lastUpdate).to.equal(secondStake);
+      expect(position.rewardsPerStakingDuration).to.equal(
+        rewardsPerStakingDuration
+      );
+      expect(position.idealPosition).to.equal(idealPosition);
+      expect(position.owner).to.equal(this.admin.address);
+
+      expect(await this.sunshine.harvest("1")).to.emit(
+        this.sunshine,
+        "Harvest"
+      );
+
+      blockNumber = await ethers.provider.getBlockNumber();
+      var harvestTime = (await ethers.provider.getBlock(blockNumber)).timestamp;
+
+      expect(await this.happy.balanceOf(this.admin.address)).to.equal(rewards);
+      expect(await this.happy.totalSupply()).to.equal(rewards);
+
+      var position = await this.sunshine.positions("1");
+      expect(position.reward).to.equal("0");
+      expect(position.balance).to.equal("0");
+      expect(position.lastUpdate).to.equal(harvestTime);
+      expect(position.rewardsPerStakingDuration).to.equal(
+        rewardsPerStakingDuration
+      );
+      expect(position.idealPosition).to.equal(idealPosition);
+
+      await expect(this.sunshine.harvest("1"))
+        .to.be.revertedWith("SARS::harvest: no reward");
+
+      expect(await this.happy.balanceOf(this.admin.address)).to.equal(rewards);
+      expect(await this.happy.totalSupply()).to.equal(rewards);
+
+      var position = await this.sunshine.positions("1");
+      expect(position.reward).to.equal("0");
+      expect(position.balance).to.equal("0");
+      expect(position.lastUpdate).to.equal(harvestTime);
+      expect(position.rewardsPerStakingDuration).to.equal(
+        rewardsPerStakingDuration
+      );
+      expect(position.idealPosition).to.equal(idealPosition);
+    });
+  });
+
+  //////////////////////////////
+  //     Simulation
+  //////////////////////////////
+  describe.skip("Simulation", function () {
   });
 });
