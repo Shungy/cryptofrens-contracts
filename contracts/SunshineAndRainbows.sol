@@ -119,9 +119,8 @@ contract SunshineAndRainbows is Pausable, Recover {
         rewardRegulator.mint(sender, uint(reward));
         emit Harvest(posId, reward);
 
-        sumOfEntryTimes +=
-            position.balance *
-            (block.timestamp - position.lastUpdate);
+        sumOfEntryTimes += (position.balance *
+            (block.timestamp - position.lastUpdate));
     }
 
     /**
@@ -140,7 +139,7 @@ contract SunshineAndRainbows is Pausable, Recover {
         updatePosition(posId);
 
         require(
-            positions[posId].balance >= amount,
+            position.balance >= amount,
             "SARS::withdraw: insufficient balance"
         );
         unchecked {
@@ -150,11 +149,10 @@ contract SunshineAndRainbows is Pausable, Recover {
         IERC20(stakingToken).safeTransfer(sender, amount);
         emit Withdraw(posId, amount);
 
-        sumOfEntryTimes +=
+        sumOfEntryTimes -= (position.lastUpdate *
+            position.balance +
             block.timestamp *
-            positions[posId].balance -
-            position.lastUpdate *
-            position.balance;
+            positions[posId].balance);
     }
 
     /**
@@ -184,7 +182,7 @@ contract SunshineAndRainbows is Pausable, Recover {
         );
         emit Stake(posId, amount);
 
-        sumOfEntryTimes += block.timestamp * amount;
+        sumOfEntryTimes += (block.timestamp * amount);
     }
 
     /* ========== INTERNAL VIEWS ========== */

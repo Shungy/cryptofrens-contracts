@@ -1,4 +1,6 @@
-// SPDX-License-Identifier: GPLv3
+// SPDX-License-Identifier: UNLICENSED
+// ALL RIGHTS RESERVED
+// solhint-disable not-rely-on-time
 pragma solidity ^0.8.0;
 
 import "./SunshineAndRainbows.sol";
