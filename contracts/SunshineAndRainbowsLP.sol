@@ -3,12 +3,14 @@
 // solhint-disable not-rely-on-time
 pragma solidity ^0.8.0;
 
-//import "./interfaces/IPangolinPair.sol";
-//import "./interfaces/IPangolinRouter.sol";
+import "./interfaces/IPangolinPair.sol";
+import "./interfaces/IPangolinRouter.sol";
+import "./SunshineAndRainbows.sol";
 
 // why use int for position.reward, why record initTime for position. what is position.parent?
 // you will find the answers for all those questions here.
 
+// define router
 
 
 /*
@@ -22,10 +24,6 @@ pragma solidity ^0.8.0;
 
 */
 
-/*
-    /// @notice Router used for adding liquidity in `harvestAndStake` function
-    IPangolinRouter public immutable router;
-*/
 
 //    /**
 //     * @notice Creates a new position and stakes `amount` tokens to it
@@ -46,9 +44,19 @@ pragma solidity ^0.8.0;
 //        _sumOfEntryTimes += block.timestamp * amount;
 //    }
 
-    /*
+contract SunshineAndRainbowsLP is SunshineAndRainbows {
+    using SafeERC20 for IERC20;
+
+    IPangolinRouter public immutable router;
+
+    constructor(address _router, address _stakingToken, address _rewardRegulator)
+        SunshineAndRainbows(_stakingToken, _rewardRegulator)
+    {
+        router = IPangolinRouter(_router);
+    }
+
     // special harvest method that does not reset APR
-    function harvestAndStake(uint posId, address to)
+    function zapHarvest(uint posId, address to)
         public
         virtual
         whenNotPaused
@@ -56,31 +64,26 @@ pragma solidity ^0.8.0;
         Position memory position = positions[posId];
         IPangolinPair pair = IPangolinPair(stakingToken);
         address sender = msg.sender;
-        uint blockTime = block.timestamp;
+        require(position.owner == sender, "SARS::zapHarvest: unauthorized");
+        require(to != address(0), "SARS::zapHarvest: invalid to address");
 
-        require(position.owner == sender, "not sender's position");
-        require(to != address(0), "cannot stake to zero address");
-        require(address(router) != address(0), "router not defined");
+        // harvest
+
+        updateRewardVariables();
 
         uint reward;
-
-        if (position.lastUpdate != blockTime) {
-            if (lastUpdate != blockTime) {
-                uint rewards = rewardRegulator.setRewards();
-                (_idealPosition, _rewardsPerStakingDuration) = rewardVariables(
-                    rewards
-                );
-            }
-            reward = earned(posId, _idealPosition, _rewardsPerStakingDuration);
-
-            // we will not update the position so we must record reward as debt
-            positions[posId].rewardDebt = reward;
+        if (position.lastUpdate != 0) {
+            reward = uint(earned(posId, _idealPosition, _rewardsPerStakingDuration));
+            // record reward as debt as we did not update the position
+            positions[posId].reward -= int(reward);
         }
 
-        require(reward != 0, "nothing to claim");
+        require(reward != 0, "SARS::zapHarvest: nothing to claim");
 
         rewardRegulator.mint(address(this), reward);
-        emit RewardPaid(posId, reward);
+        emit Harvest(posId, reward);
+
+        // swap
 
         (uint reserve0, uint reserve1, ) = pair.getReserves();
         require(
@@ -115,8 +118,23 @@ pragma solidity ^0.8.0;
             block.timestamp // deadline
         );
 
-        require(amount > 0, "cannot stake 0");
+        // Stake
 
-        stakeIntoNewPositionWithParent(amount, sender, posId);
+        require(amount > 0, "SARS::stake: zero amount");
+        require(to != address(0), "SARS::stake: bad recipient");
+
+        uint posId = createPosition(to);
+
+        totalSupply += amount;
+        positions[posId].balance += amount;
+        IERC20(stakingToken).safeTransferFrom(
+            msg.sender,
+            address(this),
+            amount
+        );
+        emit Stake(posId, amount);
+
+        sumOfEntryTimes += (block.timestamp * amount);
     }
-    */
+
+}
