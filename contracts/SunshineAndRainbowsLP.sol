@@ -34,15 +34,22 @@ contract SunshineAndRainbowsLP is SunshineAndRainbows {
         require(position.owner == msg.sender, "SARS::compound: unauthorized");
         require(to != address(0), "SARS::compound: invalid to address");
 
-        // harvest
+        // harvest //
+        /////////////
         _updateRewardVariables();
         uint reward = _harvest(posId, address(this));
         require(reward != 0, "SARS::compound: no reward");
 
-        // add liquidity
+        // subtract rewards cuz we wont update the position
+        // this allows resetting apr without accruing un-earned rewards
+        positions[posId].reward -= int(reward);
+
+        // add liquidity //
+        ///////////////////
         uint amount = _addLiquidity(reward);
 
-        // Stake
+        // Stake //
+        ///////////
         require(amount > 0, "SARS::compound: zero amount");
         uint childPosId = _createPosition(to);
         _stake(childPosId, amount, address(this));

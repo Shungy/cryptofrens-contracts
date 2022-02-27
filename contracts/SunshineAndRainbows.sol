@@ -315,6 +315,7 @@ contract SunshineAndRainbows is Pausable, Ownable {
         emit Stake(posId, amount);
     }
 
+    // for LP extension
     function _withdrawCheck(uint posId) internal virtual {}
 
     /* ========== EVENTS ========== */
