@@ -4,8 +4,9 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-import "./Recover.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 interface IRewardRegulator {
     function getRewards(address account) external view returns (uint);
@@ -18,7 +19,7 @@ interface IRewardRegulator {
 /**
  * @dev A novel staking algorithm. Refer to proofs.
  */
-contract SunshineAndRainbows is Pausable, Recover {
+contract SunshineAndRainbows is Pausable, Ownable {
     using EnumerableSet for EnumerableSet.UintSet;
     using SafeERC20 for IERC20;
 
@@ -36,15 +37,15 @@ contract SunshineAndRainbows is Pausable, Recover {
     /// @notice Number of all positions created with the contract
     uint public positionsLength;
 
-    /// @notice Sum of all active positions’ `lastUpdate * balance`
-    uint public sumOfEntryTimes;
-
     /// @notice Time stamp of first stake event
     uint public initTime;
 
     /// @notice Last interaction time (i.e. harvest, stake, withdraw)
     /// @dev Recorded only for saving gas on mass exit or harvest
     uint private _lastUpdate;
+
+    /// @notice Sum of all active positions’ `lastUpdate * balance`
+    uint private _sumOfEntryTimes;
 
     /**
      * @notice Sum of all intervals’ (`rewards`/`stakingDuration`)
@@ -83,9 +84,7 @@ contract SunshineAndRainbows is Pausable, Recover {
 
     /* ========== CONSTRUCTOR ========== */
 
-    constructor(address _stakingToken, address _rewardRegulator)
-        Recover(_stakingToken)
-    {
+    constructor(address _stakingToken, address _rewardRegulator) {
         stakingToken = _stakingToken;
         rewardRegulator = IRewardRegulator(_rewardRegulator);
     }
@@ -130,13 +129,16 @@ contract SunshineAndRainbows is Pausable, Recover {
         address sender = msg.sender;
         require(position.owner == sender, "SARS::harvest: unauthorized");
 
-        updateRewardVariables();
-        updatePosition(posId);
+        _updateRewardVariables();
+        _updatePosition(posId);
 
-        require(_harvest(posId), "SARS::harvest: no reward");
+        require(_harvest(posId, sender) != 0, "SARS::harvest: no reward");
 
-        sumOfEntryTimes += (position.balance *
-            (block.timestamp - position.lastUpdate));
+        _updateSumOfEntryTimes(
+            position.lastUpdate,
+            position.balance,
+            position.balance
+        );
     }
 
     /**
@@ -151,30 +153,30 @@ contract SunshineAndRainbows is Pausable, Recover {
         require(amount > 0, "SARS::withdraw: zero amount");
         require(position.owner == sender, "SARS::withdraw: unauthorized");
 
-        updateRewardVariables();
-        updatePosition(posId);
+        _withdrawCheck(posId);
 
-        require(
-            position.balance >= amount,
-            "SARS::withdraw: insufficient balance"
-        );
-        unchecked {
-            positions[posId].balance -= amount;
+        _updateRewardVariables();
+        _updatePosition(posId);
+
+        if (position.balance == amount) {
+            positions[posId].balance = 0;
+            _userPositions[sender].remove(posId);
+        } else if (position.balance < amount) {
+            revert("SARS::withdraw: insufficient balance");
+        } else {
+            positions[posId].balance = position.balance - amount;
         }
         totalSupply -= amount;
         IERC20(stakingToken).safeTransfer(sender, amount);
         emit Withdraw(posId, amount);
 
-        sumOfEntryTimes -= (position.lastUpdate *
-            position.balance +
-            block.timestamp *
-            positions[posId].balance);
+        _updateSumOfEntryTimes(
+            position.lastUpdate,
+            position.balance,
+            positions[posId].balance
+        );
 
-        if (position.balance == amount) {
-            _userPositions[sender].remove(posId);
-        }
-
-        _harvest(posId);
+        _harvest(posId, sender);
     }
 
     /**
@@ -190,21 +192,14 @@ contract SunshineAndRainbows is Pausable, Recover {
         if (initTime == 0) {
             initTime = block.timestamp;
         } else {
-            updateRewardVariables();
+            _updateRewardVariables();
         }
 
-        uint posId = createPosition(to);
+        uint posId = _createPosition(to);
 
-        totalSupply += amount;
-        positions[posId].balance += amount;
-        IERC20(stakingToken).safeTransferFrom(
-            msg.sender,
-            address(this),
-            amount
-        );
-        emit Stake(posId, amount);
+        _stake(posId, amount, msg.sender);
 
-        sumOfEntryTimes += (block.timestamp * amount);
+        _updateSumOfEntryTimes(0, 0, amount);
     }
 
     function massExit(uint[] memory posIds) external virtual {
@@ -225,7 +220,7 @@ contract SunshineAndRainbows is Pausable, Recover {
         uint posId,
         uint idealPosition,
         uint rewardsPerStakingDuration
-    ) internal view returns (int) {
+    ) private view returns (int) {
         Position memory position = positions[posId];
         return
             int(
@@ -239,7 +234,7 @@ contract SunshineAndRainbows is Pausable, Recover {
 
     function rewardVariables(uint rewards) private view returns (uint, uint) {
         // `stakingDuration` refers to `S` in the proof
-        uint stakingDuration = block.timestamp * totalSupply - sumOfEntryTimes;
+        uint stakingDuration = block.timestamp * totalSupply - _sumOfEntryTimes;
         return (
             _idealPosition +
                 ((block.timestamp - initTime) * rewards) /
@@ -250,24 +245,37 @@ contract SunshineAndRainbows is Pausable, Recover {
 
     /* ========== INTERNAL FUNCTIONS ========== */
 
-    function updateRewardVariables() internal {
+    function _updateRewardVariables() internal {
         if (_lastUpdate != block.timestamp && totalSupply > 0) {
+            _lastUpdate = block.timestamp;
             (_idealPosition, _rewardsPerStakingDuration) = rewardVariables(
                 rewardRegulator.setRewards()
             );
-            _lastUpdate = block.timestamp;
         }
     }
 
-    function createPosition(address owner) internal returns (uint) {
+    function _updateSumOfEntryTimes(
+        uint lastUpdate,
+        uint prevBalance,
+        uint balance
+    ) internal {
+        _sumOfEntryTimes =
+            _sumOfEntryTimes +
+            block.timestamp *
+            balance -
+            lastUpdate *
+            prevBalance;
+    }
+
+    function _createPosition(address owner) internal returns (uint) {
         positionsLength++; // posIds start from 1
         _userPositions[owner].add(positionsLength);
         positions[positionsLength].owner = owner;
-        updatePosition(positionsLength);
+        _updatePosition(positionsLength);
         return positionsLength;
     }
 
-    function updatePosition(uint posId) internal {
+    function _updatePosition(uint posId) internal {
         if (positions[posId].lastUpdate != 0) {
             positions[posId].reward = earned(
                 posId,
@@ -280,17 +288,34 @@ contract SunshineAndRainbows is Pausable, Recover {
         positions[posId].rewardsPerStakingDuration = _rewardsPerStakingDuration;
     }
 
-    function _harvest(uint posId) internal returns (bool) {
-        Position memory position = positions[posId];
-        uint reward = uint(position.reward);
+    function _harvest(uint posId, address to) internal returns (uint) {
+        uint reward = uint(positions[posId].reward);
         if (reward > 0) {
             positions[posId].reward = 0;
-            rewardRegulator.mint(position.owner, reward);
+            rewardRegulator.mint(to, reward);
             emit Harvest(posId, reward);
-            return true;
         }
-        return false;
+        return reward;
     }
+
+    function _stake(
+        uint posId,
+        uint amount,
+        address from
+    ) internal {
+        totalSupply += amount;
+        positions[posId].balance += amount;
+        if (from != address(this)) {
+            IERC20(stakingToken).safeTransferFrom(
+                msg.sender,
+                address(this),
+                amount
+            );
+        }
+        emit Stake(posId, amount);
+    }
+
+    function _withdrawCheck(uint posId) internal virtual {}
 
     /* ========== EVENTS ========== */
 

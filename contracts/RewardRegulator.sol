@@ -4,6 +4,8 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 interface IHappy {
     function mint(address account, uint amount) external;
@@ -23,7 +25,9 @@ interface IHappy {
  * tokens are distributed to stakers. It also does not require funding, as it
  * mints directly from the token contract.
  */
-contract RewardRegulator is Ownable {
+contract RewardRegulator is Ownable, Pausable {
+    using EnumerableSet for EnumerableSet.AddressSet;
+
     /// @notice The reward token the contract will distribute
     IHappy public immutable happy;
 
@@ -38,9 +42,6 @@ contract RewardRegulator is Ownable {
 
     /// @notice The amount of reward tokens that were minted through `mint()`
     uint public totalEmitted;
-
-    /// @notice The number of addresses that had or have non-zero allocation
-    uint public mintersLength;
 
     /// @notice Whether the sum of allocations equal zero or `DENOMINATOR`
     bool public initiated;
@@ -60,8 +61,8 @@ contract RewardRegulator is Ownable {
     /// @notice The mapping of accounts (i.e. minters) to their information
     mapping(address => Minter) public minters;
 
-    /// @notice The list of past & current accounts
-    mapping(uint => address) public minterByIndex;
+    /// @notice A set of minter addresses with non-zero allocation
+    EnumerableSet.AddressSet private _minterAddresses;
 
     /**
      * @notice Construct a new RewardRegulator contract
@@ -73,36 +74,11 @@ contract RewardRegulator is Ownable {
     }
 
     /**
-     * @notice Gets the accounts that have or had non-zero allocation
-     * @param from Shows account from the index `from`
-     * @param to Shows accounts until the index `to`, or until the last account,
-     * whichever is less
-     * @return Returns two arrays, one listing the addresses, and the other
-     * listing the corresponding information
+     * @notice Gets the accounts with allocations
+     * @return The list of minter addresses
      */
-    function getMinters(uint from, uint to)
-        external
-        view
-        returns (address[] memory, Minter[] memory)
-    {
-        require(
-            initiated,
-            "RewardRegulator::getMinters: contract not initated"
-        );
-        if (to >= mintersLength) {
-            to = mintersLength - 1;
-        }
-        require(from <= to, "RewardRegulator::getMinters: index out of bounds");
-        uint requestLength = to - from + 1;
-        address[] memory minterAddresses = new address[](requestLength);
-        Minter[] memory requestedMinters = new Minter[](requestLength);
-        for (uint i = from; i <= to; ++i) {
-            uint index = i - from;
-            address addr = minterByIndex[i];
-            minterAddresses[index] = addr;
-            requestedMinters[index] = minters[addr];
-        }
-        return (minterAddresses, requestedMinters);
+    function getMinters() external view returns (address[] memory) {
+        return _minterAddresses.values();
     }
 
     /**
@@ -142,11 +118,10 @@ contract RewardRegulator is Ownable {
      * @param to The recipient address of the freshly minted tokens
      * @param amount The amount of tokens to mint
      */
-    function mint(address to, uint amount) external {
+    function mint(address to, uint amount) external whenNotPaused {
         address sender = msg.sender;
-        Minter memory minter = minters[sender];
         require(
-            amount <= minter.unminted && amount > 0,
+            amount <= minters[sender].unminted && amount > 0,
             "RewardRegulator::mint: Invalid mint amount"
         );
         unchecked {
@@ -180,13 +155,18 @@ contract RewardRegulator is Ownable {
                 newAlloc != oldAlloc,
                 "RewardRegulator::setMinters: new allocation must not be same"
             );
-            if (minter.lastUpdate == 0) {
-                // index the new minter
-                minterByIndex[mintersLength] = account;
-                mintersLength++;
-            } else if (oldAlloc != 0) {
+            if (oldAlloc == 0) {
+                // add the new minter to the set
+                _minterAddresses.add(account);
+            } else {
                 // stash the undeclared rewards
                 minters[account].undeclared = getRewards(account);
+            }
+            if (newAlloc == 0) {
+                // remove minter from set.
+                // note that the minter can continue to mint until
+                // its undeclared and unminted amounts are both 0.
+                _minterAddresses.remove(account);
             }
             minters[account].lastUpdate = blockTime;
             totalAllocChange += int(oldAlloc) - int(newAlloc);
@@ -235,18 +215,23 @@ contract RewardRegulator is Ownable {
             blockTime - halfSupplyLastUpdate > 2 days,
             "RewardRegulator::setHalfSupply: cannot update that often"
         );
-        for (uint i; i < mintersLength; ++i) {
-            address account = minterByIndex[i];
-            Minter memory minter = minters[account];
-            if (minter.allocation != 0) {
-                // stash the undeclared rewards
-                minters[account].undeclared = getRewards(account);
-                minters[account].lastUpdate = blockTime;
-            }
+        for (uint i; i < _minterAddresses.length(); ++i) {
+            address account = _minterAddresses.at(i);
+            // stash the undeclared rewards
+            minters[account].undeclared = getRewards(account);
+            minters[account].lastUpdate = blockTime;
         }
         halfSupply = newHalfSupply;
         halfSupplyLastUpdate = blockTime;
         emit NewHalfSupply(halfSupply);
+    }
+
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function resume() external onlyOwner {
+        _unpause();
     }
 
     /// @notice The event that is emitted when an account’s allocation changes

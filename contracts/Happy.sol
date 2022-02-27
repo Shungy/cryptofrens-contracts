@@ -3,10 +3,9 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
-contract Happy is ERC20Burnable, Ownable, Pausable {
+contract Happy is ERC20Burnable, Ownable {
     uint public burnedSupply;
     uint public maxSupply = 10_000_000e18; // 10M HAPPY
 
@@ -25,7 +24,7 @@ contract Happy is ERC20Burnable, Ownable, Pausable {
         return maxSupply + burnedSupply;
     }
 
-    function mint(address account, uint amount) external whenNotPaused {
+    function mint(address account, uint amount) external {
         require(msg.sender == minter, "Happy::mint: unauthorized sender");
         _mint(account, amount);
         require(maxSupply >= totalSupply(), "Happy::mint: amount too high");
@@ -58,14 +57,6 @@ contract Happy is ERC20Burnable, Ownable, Pausable {
 
     function hardcap() external onlyOwner {
         hardcapped = true;
-    }
-
-    function pause() external onlyOwner {
-        _pause();
-    }
-
-    function resume() external onlyOwner {
-        _unpause();
     }
 
     function _afterTokenTransfer(

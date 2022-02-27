@@ -7,88 +7,65 @@ import "./interfaces/IPangolinPair.sol";
 import "./interfaces/IPangolinRouter.sol";
 import "./SunshineAndRainbows.sol";
 
-// why use int for position.reward, why record initTime for position. what is position.parent?
-// you will find the answers for all those questions here.
-
-// define router
-
-
-/*
-        // cannot withdraw if parent position was not updated
-        if (position.parent != 0) {
-            require(
-                position.initTime < positions[position.parent].lastUpdate,
-                "parent position was not updated"
-            );
-        }
-
-*/
-
-
-//    /**
-//     * @notice Creates a new position and stakes `amount` tokens to it
-//     * @param amount Amount of tokens to stake
-//     * @param to Owner of the new position
-//     * @param parent Parent of this position
-//     */
-//    function stakeFromParent(uint amount, address to, uint parent) private {
-//        uint posId = createPosition(to, parent);
-//
-//        //updateRewardVariables();
-//        updatePosition(posId);
-//
-//        totalSupply += amount;
-//        positions[posId].balance += amount;
-//        emit Staked(posId, amount);
-//
-//        _sumOfEntryTimes += block.timestamp * amount;
-//    }
-
 contract SunshineAndRainbowsLP is SunshineAndRainbows {
     using SafeERC20 for IERC20;
 
     IPangolinRouter public immutable router;
+    IPangolinPair public immutable pair;
 
-    constructor(address _router, address _stakingToken, address _rewardRegulator)
-        SunshineAndRainbows(_stakingToken, _rewardRegulator)
-    {
+    /// @notice Child position ID => Parent position ID
+    mapping(uint => uint) public parents;
+
+    /// @notice Child position ID => Its creation time
+    mapping(uint => uint) public creationTimes;
+
+    constructor(
+        address _router,
+        address _stakingToken,
+        address _rewardRegulator
+    ) SunshineAndRainbows(_stakingToken, _rewardRegulator) {
         router = IPangolinRouter(_router);
+        pair = IPangolinPair(_stakingToken);
     }
 
     // special harvest method that does not reset APR
-    function zapHarvest(uint posId, address to)
-        public
-        virtual
-        whenNotPaused
-    {
+    function compound(uint posId, address to) public virtual whenNotPaused {
         Position memory position = positions[posId];
-        IPangolinPair pair = IPangolinPair(stakingToken);
-        address sender = msg.sender;
-        require(position.owner == sender, "SARS::zapHarvest: unauthorized");
-        require(to != address(0), "SARS::zapHarvest: invalid to address");
+        require(position.owner == msg.sender, "SARS::compound: unauthorized");
+        require(to != address(0), "SARS::compound: invalid to address");
 
         // harvest
+        _updateRewardVariables();
+        uint reward = _harvest(posId, address(this));
+        require(reward != 0, "SARS::compound: no reward");
 
-        updateRewardVariables();
+        // add liquidity
+        uint amount = _addLiquidity(reward);
 
-        uint reward;
-        if (position.lastUpdate != 0) {
-            reward = uint(earned(posId, _idealPosition, _rewardsPerStakingDuration));
-            // record reward as debt as we did not update the position
-            positions[posId].reward -= int(reward);
+        // Stake
+        require(amount > 0, "SARS::compound: zero amount");
+        uint childPosId = _createPosition(to);
+        _stake(childPosId, amount, address(this));
+        _updateSumOfEntryTimes(0, 0, amount);
+
+        parents[childPosId] = posId;
+        creationTimes[childPosId] = block.timestamp;
+    }
+
+    function _withdrawCheck(uint posId) internal view override {
+        if (parents[posId] != 0) {
+            require(
+                creationTimes[posId] < positions[parents[posId]].lastUpdate,
+                "SARS::_withdrawCheck: parent position not updated"
+            );
         }
+    }
 
-        require(reward != 0, "SARS::zapHarvest: nothing to claim");
-
-        rewardRegulator.mint(address(this), reward);
-        emit Harvest(posId, reward);
-
-        // swap
-
+    function _addLiquidity(uint reward) private returns (uint) {
         (uint reserve0, uint reserve1, ) = pair.getReserves();
         require(
             reserve0 > 1000 && reserve1 > 1000,
-            "Liquidity pair reserves too low"
+            "SARS::_addLiquidity: reserves too low"
         );
 
         uint pairAmount;
@@ -97,15 +74,16 @@ contract SunshineAndRainbowsLP is SunshineAndRainbows {
             pairToken = pair.token1();
             pairAmount = (reward * reserve1) / reserve0;
         } else {
-            require(
-                pair.token1() == stakingToken,
-                "Staking token not present in liquidity pair"
-            );
+            require(pair.token1() == stakingToken, "unavailable");
             pairToken = pair.token0();
             pairAmount = (reward * reserve0) / reserve1;
         }
 
-        IERC20(pairToken).safeTransferFrom(sender, address(this), pairAmount);
+        IERC20(pairToken).safeTransferFrom(
+            msg.sender,
+            address(this),
+            pairAmount
+        );
 
         (, , uint amount) = router.addLiquidity(
             stakingToken, // tokenA
@@ -118,23 +96,6 @@ contract SunshineAndRainbowsLP is SunshineAndRainbows {
             block.timestamp // deadline
         );
 
-        // Stake
-
-        require(amount > 0, "SARS::stake: zero amount");
-        require(to != address(0), "SARS::stake: bad recipient");
-
-        uint posId = createPosition(to);
-
-        totalSupply += amount;
-        positions[posId].balance += amount;
-        IERC20(stakingToken).safeTransferFrom(
-            msg.sender,
-            address(this),
-            amount
-        );
-        emit Stake(posId, amount);
-
-        sumOfEntryTimes += (block.timestamp * amount);
+        return amount;
     }
-
 }

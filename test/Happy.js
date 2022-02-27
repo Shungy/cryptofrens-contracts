@@ -77,10 +77,6 @@ describe("Happy.sol", function () {
       expect(await this.happy.hardcapped()).to.equal(false);
     });
 
-    it("default: paused", async function () {
-      expect(await this.happy.paused()).to.equal(false);
-    });
-
     it("default: mintableTotal", async function () {
       expect(await this.happy.mintableTotal()).to.equal(TOTAL_SUPPLY);
     });
@@ -141,24 +137,6 @@ describe("Happy.sol", function () {
       expect(await this.happy.totalSupply()).to.equal("0");
     });
 
-    it("none can mint when paused", async function () {
-      expect(await this.happy.pause()).to.emit(this.happy, "Paused");
-
-      await expect(this.happy.mint(this.admin.address, TOTAL_SUPPLY))
-        .to.be.revertedWith("Pausable: paused");
-
-      expect(await this.happy.setMinter(this.admin.address))
-        .to.emit(this.happy, "NewMinter");
-
-      expect(await this.happy.minter()).to.equal(this.admin.address);
-
-      await expect(this.happy.mint(this.admin.address, TOTAL_SUPPLY))
-        .to.be.revertedWith("Pausable: paused");
-
-      expect(await this.happy.balanceOf(this.admin.address)).to.equal("0");
-      expect(await this.happy.totalSupply()).to.equal("0");
-    });
-
   });
 
 
@@ -209,66 +187,6 @@ describe("Happy.sol", function () {
       await this.happy.setExternalURI(EXAMPLE_URI);
 
       expect(await this.happy.externalURI()).to.equal(EXAMPLE_URI);
-    });
-
-  });
-
-
-  //////////////////////////////
-  //     pause
-  //////////////////////////////
-  describe("pause", function () {
-    it("unauthorized cannot pause", async function () {
-      happy = await this.happy.connect(this.unauthorized);
-
-      expect(await this.happy.paused()).to.equal(false);
-
-      await expect(happy.pause())
-        .to.be.revertedWith("Ownable: caller is not the owner");
-
-      expect(await this.happy.paused()).to.equal(false);
-    });
-
-    it("authorized can pause", async function () {
-      expect(await this.happy.paused()).to.equal(false);
-
-      expect(await this.happy.pause()).to.emit(this.happy, "Paused");
-
-      expect(await this.happy.paused()).to.equal(true);
-    });
-
-  });
-
-
-  //////////////////////////////
-  //     resume
-  //////////////////////////////
-  describe("resume", function () {
-    it("unauthorized cannot resume", async function () {
-      expect(await this.happy.paused()).to.equal(false);
-
-      expect(await this.happy.pause()).to.emit(this.happy, "Paused");
-
-      expect(await this.happy.paused()).to.equal(true);
-
-      happy = await this.happy.connect(this.unauthorized);
-
-      await expect(happy.resume())
-        .to.be.revertedWith("Ownable: caller is not the owner");
-
-      expect(await this.happy.paused()).to.equal(true);
-    });
-
-    it("authorized can resume", async function () {
-      expect(await this.happy.paused()).to.equal(false);
-
-      expect(await this.happy.pause()).to.emit(this.happy, "Paused");
-
-      expect(await this.happy.paused()).to.equal(true);
-
-      expect(await this.happy.resume()).to.emit(this.happy, "Unpaused");
-
-      expect(await this.happy.paused()).to.equal(false);
     });
 
   });

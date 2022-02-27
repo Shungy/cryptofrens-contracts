@@ -1,8 +1,7 @@
-// SPDX-License-Identifier: UNLICENSED
-// ALL RIGHTS RESERVED
-// solhint-disable not-rely-on-time
+// SPDX-License-Identifier: GPLv3
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/token/ERC721/extensions/IERC721Enumerable.sol";
 import "./SunshineAndRainbows.sol";
 
 contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
@@ -19,14 +18,6 @@ contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
         return _tokensOf[posId].values();
     }
 
-    function tokensLength(uint posId) external view returns (uint) {
-        return _tokensOf[posId].length();
-    }
-
-    function tokensAt(uint posId, uint index) external view returns (uint) {
-        return _tokensOf[posId].at(index);
-    }
-
     function stakeERC721(uint[] memory tokens, address to)
         external
         whenNotPaused
@@ -40,10 +31,10 @@ contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
         if (initTime == 0) {
             initTime = block.timestamp;
         } else {
-            updateRewardVariables();
+            _updateRewardVariables();
         }
 
-        uint posId = createPosition(to);
+        uint posId = _createPosition(to);
 
         for (uint i; i < amount; ++i) {
             uint tokenId = tokens[i];
@@ -58,7 +49,7 @@ contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
         totalSupply += amount;
         emit Stake(posId, amount);
 
-        sumOfEntryTimes += (block.timestamp * amount);
+        _updateSumOfEntryTimes(0, 0, amount);
     }
 
     function withdrawERC721(uint[] memory tokens, uint posId) external {
@@ -69,8 +60,17 @@ contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
         require(amount > 0, "SARS::withdraw: zero amount");
         require(position.owner == sender, "SARS::withdraw: unauthorized");
 
-        updateRewardVariables();
-        updatePosition(posId);
+        _updateRewardVariables();
+        _updatePosition(posId);
+
+        if (position.balance == amount) {
+            positions[posId].balance = 0;
+            _userPositions[sender].remove(posId);
+        } else if (position.balance < amount) {
+            revert("SARS::withdraw: insufficient balance");
+        } else {
+            positions[posId].balance = position.balance - amount;
+        }
 
         for (uint i; i < amount; ++i) {
             uint tokenId = tokens[i];
@@ -80,31 +80,27 @@ contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
             );
             IERC721(stakingToken).transferFrom(address(this), sender, tokenId);
         }
-        positions[posId].balance = position.balance - amount;
         totalSupply -= amount;
         emit Withdraw(posId, amount);
 
-        sumOfEntryTimes += (block.timestamp *
-            positions[posId].balance -
-            position.lastUpdate *
-            position.balance);
+        _updateSumOfEntryTimes(
+            position.lastUpdate,
+            position.balance,
+            positions[posId].balance
+        );
 
-        if (position.balance == amount) {
-            _userPositions[sender].remove(posId);
-        }
-
-        _harvest(posId);
+        _harvest(posId, sender);
     }
 
     function withdraw(uint, uint) public pure override {
-        revert("SARS::withdraw: use `withdrawERC721'");
+        revert();
     }
 
     function stake(uint, address) external pure override {
-        revert("SARS::stake: use `stakeERC721'");
+        revert();
     }
 
     function massExit(uint[] memory) external pure override {
-        revert("SARS::massExit: use `withdrawERC721'");
+        revert();
     }
 }

@@ -90,12 +90,8 @@ describe("SunshineAndRainbows.sol", function () {
       expect(await this.sunshine.positionsLength()).to.equal("0");
     });
 
-    it("default: sumOfEntryTimes", async function () {
-      expect(await this.sunshine.sumOfEntryTimes()).to.equal("0");
-    });
-
     it("default: initTime", async function () {
-      expect(await this.sunshine.sumOfEntryTimes()).to.equal("0");
+      expect(await this.sunshine.initTime()).to.equal("0");
     });
   });
 
@@ -116,7 +112,6 @@ describe("SunshineAndRainbows.sol", function () {
 
       expect(await this.sunshine.totalSupply()).to.equal("1");
       expect(await this.sunshine.positionsLength()).to.equal("1");
-      expect(await this.sunshine.sumOfEntryTimes()).to.equal(initTime);
       expect(await this.sunshine.initTime()).to.equal(initTime);
       expect(await this.pgl.balanceOf(this.sunshine.address)).to.equal("1");
 
@@ -150,7 +145,6 @@ describe("SunshineAndRainbows.sol", function () {
 
       expect(await this.sunshine.totalSupply()).to.equal("1");
       expect(await this.sunshine.positionsLength()).to.equal("1");
-      expect(await this.sunshine.sumOfEntryTimes()).to.equal(initTime);
       expect(await this.sunshine.initTime()).to.equal(initTime);
       expect(await this.pgl.balanceOf(this.sunshine.address)).to.equal("1");
 
@@ -219,9 +213,6 @@ describe("SunshineAndRainbows.sol", function () {
 
       expect(await this.sunshine.totalSupply()).to.equal("2");
       expect(await this.sunshine.positionsLength()).to.equal("2");
-      expect(await this.sunshine.sumOfEntryTimes()).to.equal(
-        initTime + secondStake
-      );
       expect(await this.sunshine.initTime()).to.equal(initTime);
       expect(await this.pgl.balanceOf(this.sunshine.address)).to.equal("2");
 
@@ -282,7 +273,6 @@ describe("SunshineAndRainbows.sol", function () {
 
       expect(await this.sunshine.totalSupply()).to.equal("0");
       expect(await this.sunshine.positionsLength()).to.equal("1");
-      expect(await this.sunshine.sumOfEntryTimes()).to.equal("0");
       expect(await this.pgl.balanceOf(this.sunshine.address)).to.equal("0");
       expect(await this.pgl.balanceOf(this.admin.address)).to.equal(
         TOTAL_SUPPLY
@@ -427,7 +417,6 @@ describe("SunshineAndRainbows.sol", function () {
 
       expect(await this.sunshine.totalSupply()).to.equal("1");
       expect(await this.sunshine.positionsLength()).to.equal("1");
-      expect(await this.sunshine.sumOfEntryTimes()).to.equal(secondStake);
       expect(await this.pgl.balanceOf(this.sunshine.address)).to.equal("1");
       expect(await this.pgl.balanceOf(this.admin.address)).to.equal(
         TOTAL_SUPPLY.sub("1")
@@ -518,7 +507,6 @@ describe("SunshineAndRainbows.sol", function () {
 
       expect(await this.sunshine.totalSupply()).to.equal("0");
       expect(await this.sunshine.positionsLength()).to.equal("1");
-      expect(await this.sunshine.sumOfEntryTimes()).to.equal("0");
       expect(await this.pgl.balanceOf(this.sunshine.address)).to.equal("0");
       expect(await this.pgl.balanceOf(this.admin.address)).to.equal(
         TOTAL_SUPPLY

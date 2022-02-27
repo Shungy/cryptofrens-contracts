@@ -82,10 +82,6 @@ describe("RewardRegulator.sol", function () {
       expect(await this.regulator.totalEmitted()).to.equal("0");
     });
 
-    it("default: mintersLength", async function () {
-      expect(await this.regulator.mintersLength()).to.equal("0");
-    });
-
     it("default: initated", async function () {
       expect(await this.regulator.initiated()).to.equal(false);
     });
@@ -94,255 +90,10 @@ describe("RewardRegulator.sol", function () {
       expect(await this.regulator.halfSupply()).to.equal(HALF_SUPPLY);
     });
 
-  });
-
-
-  //////////////////////////////
-  //     getMinters
-  //////////////////////////////
-  describe("getMinters", function () {
-    it("reverts when not initated", async function () {
-      await expect(this.regulator.getMinters(0,50)).to.be.revertedWith(
-        "RewardRegulator::getMinters: contract not initated"
-      );
+    it("default: paused", async function () {
+      expect(await this.regulator.paused()).to.equal(false);
     });
 
-    it("reverts when out of bound", async function () {
-      var length = 7;
-      var [recipients, allocations] = generateRecipients(length);
-
-      expect(await this.regulator.setMinters(recipients, allocations)).to.emit(
-        this.regulator, "NewAllocation"
-      );
-
-      await expect(this.regulator.getMinters(length, length)).to.be.revertedWith(
-        "RewardRegulator::getMinters: index out of bounds"
-      );
-    });
-
-    it("reverts when left greater than right", async function () {
-      var length = 7;
-      var [recipients, allocations] = generateRecipients(length);
-
-      expect(await this.regulator.setMinters(recipients, allocations)).to.emit(
-        this.regulator, "NewAllocation"
-      );
-
-      await expect(this.regulator.getMinters(1, 0)).to.be.revertedWith(
-        "RewardRegulator::getMinters: index out of bounds"
-      );
-    });
-
-    it("gets 0 to beyond minters length", async function () {
-      var length = 7;
-      var [recipients, allocations] = generateRecipients(length);
-
-      expect(await this.regulator.setMinters(recipients, allocations)).to.emit(
-        this.regulator, "NewAllocation"
-      );
-
-      var blockNumber = await ethers.provider.getBlockNumber();
-      var blockTime = (await ethers.provider.getBlock(blockNumber)).timestamp;
-
-      var [returnedAddresses, returnedRecipients] =
-        await this.regulator.getMinters(0, 50);
-
-      expect(recipients.length).to.equal(returnedAddresses.length).to.equal(length)
-        .to.equal(allocations.length).to.equal(returnedRecipients.length);
-
-      for (let i = 0; i < length; i++) {
-        expect(recipients[i]).to.equal(returnedAddresses[i]);
-        expect(allocations[i]).to.equal(returnedRecipients[i].allocation);
-
-        expect(returnedRecipients[i].unminted).to.equal("0");
-        expect(returnedRecipients[i].undeclared).to.equal("0");
-        expect(returnedRecipients[i].lastUpdate).to.equal(blockTime);
-
-        expect(returnedRecipients[i].length).to.equal(4);
-      }
-    });
-
-    it("gets 0 to minters length", async function () {
-      var length = 7;
-      var [recipients, allocations] = generateRecipients(length);
-
-      expect(await this.regulator.setMinters(recipients, allocations)).to.emit(
-        this.regulator, "NewAllocation"
-      );
-
-      var blockNumber = await ethers.provider.getBlockNumber();
-      var blockTime = (await ethers.provider.getBlock(blockNumber)).timestamp;
-
-      var [returnedAddresses, returnedRecipients] =
-        await this.regulator.getMinters(0, length - 1);
-
-      expect(recipients.length).to.equal(returnedAddresses.length).to.equal(length)
-        .to.equal(allocations.length).to.equal(returnedRecipients.length);
-
-      for (let i = 0; i < length; i++) {
-        expect(recipients[i]).to.equal(returnedAddresses[i]);
-        expect(allocations[i]).to.equal(returnedRecipients[i].allocation);
-
-        expect(returnedRecipients[i].unminted).to.equal("0");
-        expect(returnedRecipients[i].undeclared).to.equal("0");
-        expect(returnedRecipients[i].lastUpdate).to.equal(blockTime);
-
-        expect(returnedRecipients[i].length).to.equal(4);
-      }
-    });
-
-    it("gets 0 to below minters length", async function () {
-      var length = 7;
-      var [recipients, allocations] = generateRecipients(length);
-
-      expect(await this.regulator.setMinters(recipients, allocations)).to.emit(
-        this.regulator, "NewAllocation"
-      );
-
-      var blockNumber = await ethers.provider.getBlockNumber();
-      var blockTime = (await ethers.provider.getBlock(blockNumber)).timestamp;
-
-      var [returnedAddresses, returnedRecipients] =
-        await this.regulator.getMinters(0, 3);
-
-      expect(recipients.length).to.equal(allocations.length).to.equal(length);
-      expect(returnedAddresses.length).to.equal(returnedRecipients.length).to.equal(4);
-
-      for (let i = 0; i < returnedAddresses.length; i++) {
-        expect(recipients[i]).to.equal(returnedAddresses[i]);
-        expect(allocations[i]).to.equal(returnedRecipients[i].allocation);
-
-        expect(returnedRecipients[i].unminted).to.equal("0");
-        expect(returnedRecipients[i].undeclared).to.equal("0");
-        expect(returnedRecipients[i].lastUpdate).to.equal(blockTime);
-
-        expect(returnedRecipients[i].length).to.equal(4);
-      }
-    });
-
-    it("gets above 0 to beyond minters length", async function () {
-      var length = 7;
-      var offset = 3;
-      var [recipients, allocations] = generateRecipients(length);
-
-      expect(await this.regulator.setMinters(recipients, allocations)).to.emit(
-        this.regulator, "NewAllocation"
-      );
-
-      var blockNumber = await ethers.provider.getBlockNumber();
-      var blockTime = (await ethers.provider.getBlock(blockNumber)).timestamp;
-
-      var [returnedAddresses, returnedRecipients] =
-        await this.regulator.getMinters(offset, 50);
-
-      expect(recipients.length).to.equal(allocations.length).to.equal(length);
-      expect(returnedAddresses.length).to.equal(returnedRecipients.length).to.equal(length - offset);
-
-      for (let i = offset; i < length; i++) {
-        expect(recipients[i]).to.equal(returnedAddresses[i -  offset]);
-        expect(allocations[i]).to.equal(returnedRecipients[i - offset].allocation);
-
-        expect(returnedRecipients[i - offset].unminted).to.equal("0");
-        expect(returnedRecipients[i - offset].undeclared).to.equal("0");
-        expect(returnedRecipients[i - offset].lastUpdate).to.equal(blockTime);
-
-        expect(returnedRecipients[i - offset].length).to.equal(4);
-      }
-    });
-
-    it("gets above 0 to minters length", async function () {
-      var length = 7;
-      var offset = 3;
-      var [recipients, allocations] = generateRecipients(length);
-
-      expect(await this.regulator.setMinters(recipients, allocations)).to.emit(
-        this.regulator, "NewAllocation"
-      );
-
-      var blockNumber = await ethers.provider.getBlockNumber();
-      var blockTime = (await ethers.provider.getBlock(blockNumber)).timestamp;
-
-      var [returnedAddresses, returnedRecipients] =
-        await this.regulator.getMinters(offset, length - 1);
-
-      expect(recipients.length).to.equal(allocations.length).to.equal(length);
-      expect(returnedAddresses.length).to.equal(returnedRecipients.length).to.equal(length - offset);
-
-      for (let i = offset; i < length; i++) {
-        expect(recipients[i]).to.equal(returnedAddresses[i -  offset]);
-        expect(allocations[i]).to.equal(returnedRecipients[i - offset].allocation);
-
-        expect(returnedRecipients[i - offset].unminted).to.equal("0");
-        expect(returnedRecipients[i - offset].undeclared).to.equal("0");
-        expect(returnedRecipients[i - offset].lastUpdate).to.equal(blockTime);
-
-        expect(returnedRecipients[i - offset].length).to.equal(4);
-      }
-    });
-
-    it("gets above 0 to below minters length", async function () {
-      var length = 7;
-      var offset = 3;
-      var slice = 2;
-      var [recipients, allocations] = generateRecipients(length);
-
-      expect(await this.regulator.setMinters(recipients, allocations)).to.emit(
-        this.regulator, "NewAllocation"
-      );
-
-      var blockNumber = await ethers.provider.getBlockNumber();
-      var blockTime = (await ethers.provider.getBlock(blockNumber)).timestamp;
-
-      var [returnedAddresses, returnedRecipients] =
-        await this.regulator.getMinters(offset, length - slice);
-
-      expect(recipients.length).to.equal(allocations.length).to.equal(length);
-      expect(returnedAddresses.length).to.equal(returnedRecipients.length)
-        .to.equal(length - offset - slice + 1);
-
-      for (let i = offset; i < length - slice; i++) {
-        expect(recipients[i]).to.equal(returnedAddresses[i -  offset]);
-        expect(allocations[i]).to.equal(returnedRecipients[i - offset].allocation);
-
-        expect(returnedRecipients[i - offset].unminted).to.equal("0");
-        expect(returnedRecipients[i - offset].undeclared).to.equal("0");
-        expect(returnedRecipients[i - offset].lastUpdate).to.equal(blockTime);
-
-        expect(returnedRecipients[i - offset].length).to.equal(4);
-      }
-    });
-
-    it("gets n to n", async function () {
-      var length = 7;
-      var offset = 3;
-      var slice = length - offset - 1;
-      var [recipients, allocations] = generateRecipients(length);
-
-      expect(await this.regulator.setMinters(recipients, allocations)).to.emit(
-        this.regulator, "NewAllocation"
-      );
-
-      var blockNumber = await ethers.provider.getBlockNumber();
-      var blockTime = (await ethers.provider.getBlock(blockNumber)).timestamp;
-
-      var [returnedAddresses, returnedRecipients] =
-        await this.regulator.getMinters(offset, length - slice);
-
-      expect(recipients.length).to.equal(allocations.length).to.equal(length);
-      expect(returnedAddresses.length).to.equal(returnedRecipients.length)
-        .to.equal(length - offset - slice + 1);
-
-      for (let i = offset; i < length - slice; i++) {
-        expect(recipients[i]).to.equal(returnedAddresses[i -  offset]);
-        expect(allocations[i]).to.equal(returnedRecipients[i - offset].allocation);
-
-        expect(returnedRecipients[i - offset].unminted).to.equal("0");
-        expect(returnedRecipients[i - offset].undeclared).to.equal("0");
-        expect(returnedRecipients[i - offset].lastUpdate).to.equal(blockTime);
-
-        expect(returnedRecipients[i - offset].length).to.equal(4);
-      }
-    });
 
   });
 
@@ -366,12 +117,12 @@ describe("RewardRegulator.sol", function () {
       await expect(regulator.setMinters([this.unauthorized.address], [DENOMINATOR]))
         .to.be.revertedWith("Ownable: caller is not the owner");
 
-      expect(await this.regulator.mintersLength()).to.equal("0");
+      expect((await this.regulator.getMinters()).length).to.equal(0);
     });
 
     it("sets minter with correct allocation", async function () {
       expect(await this.regulator.initiated()).to.equal(false);
-      expect(await this.regulator.mintersLength()).to.equal("0");
+      expect((await this.regulator.getMinters()).length).to.equal(0);
 
       var length = 7;
       var [recipients, allocations] = generateRecipients(length);
@@ -399,12 +150,12 @@ describe("RewardRegulator.sol", function () {
 
       expect(totalAlloc).to.equal(DENOMINATOR);
       expect(await this.regulator.initiated()).to.equal(true);
-      expect(await this.regulator.mintersLength()).to.equal(length);
+      expect((await this.regulator.getMinters()).length).to.equal(length);
     });
 
     it("sets new minters with correct allocation", async function () {
       expect(await this.regulator.initiated()).to.equal(false);
-      expect(await this.regulator.mintersLength()).to.equal("0");
+      expect((await this.regulator.getMinters()).length).to.equal(0);
 
       var length = 7;
       var [recipients, allocations] = generateRecipients(length);
@@ -432,7 +183,7 @@ describe("RewardRegulator.sol", function () {
 
       expect(totalAlloc).to.equal(DENOMINATOR);
       expect(await this.regulator.initiated()).to.equal(true);
-      expect(await this.regulator.mintersLength()).to.equal(length);
+      expect((await this.regulator.getMinters()).length).to.equal(length);
 
       var [newRecipients, newAllocations] = generateRecipients(length);
       newRecipients = recipients.concat(newRecipients);
@@ -472,13 +223,13 @@ describe("RewardRegulator.sol", function () {
 
       expect(totalAlloc).to.equal(DENOMINATOR);
       expect(await this.regulator.initiated()).to.equal(true);
-      expect(await this.regulator.mintersLength()).to.equal(2 * length);
+      expect((await this.regulator.getMinters()).length).to.equal(length);
 
     });
 
     it("ends allocations", async function () {
       expect(await this.regulator.initiated()).to.equal(false);
-      expect(await this.regulator.mintersLength()).to.equal("0");
+      expect((await this.regulator.getMinters()).length).to.equal(0);
 
       var length = 7;
       var [recipients, allocations] = generateRecipients(length);
@@ -506,7 +257,7 @@ describe("RewardRegulator.sol", function () {
 
       expect(totalAlloc).to.equal(DENOMINATOR);
       expect(await this.regulator.initiated()).to.equal(true);
-      expect(await this.regulator.mintersLength()).to.equal(length);
+      expect((await this.regulator.getMinters()).length).to.equal(length);
 
       var newAllocations = [];
       for (let i = 0; i < length; i++) {
@@ -541,13 +292,13 @@ describe("RewardRegulator.sol", function () {
 
       expect(totalAlloc).to.equal("0");
       expect(await this.regulator.initiated()).to.equal(false);
-      expect(await this.regulator.mintersLength()).to.equal(length);
+      expect((await this.regulator.getMinters()).length).to.equal(0);
 
     });
 
     it("restarts allocations", async function () {
       expect(await this.regulator.initiated()).to.equal(false);
-      expect(await this.regulator.mintersLength()).to.equal("0");
+      expect((await this.regulator.getMinters()).length).to.equal(0);
 
       var length = 7;
       var [recipients, allocations] = generateRecipients(length);
@@ -575,7 +326,7 @@ describe("RewardRegulator.sol", function () {
 
       expect(totalAlloc).to.equal(DENOMINATOR);
       expect(await this.regulator.initiated()).to.equal(true);
-      expect(await this.regulator.mintersLength()).to.equal(length);
+      expect((await this.regulator.getMinters()).length).to.equal(length);
 
       var newAllocations = [];
       for (let i = 0; i < length; i++) {
@@ -610,7 +361,7 @@ describe("RewardRegulator.sol", function () {
 
       expect(totalAlloc).to.equal("0");
       expect(await this.regulator.initiated()).to.equal(false);
-      expect(await this.regulator.mintersLength()).to.equal(length);
+      expect((await this.regulator.getMinters()).length).to.equal(0);
 
       expect(await this.regulator.setMinters(recipients, allocations)).to.emit(
         this.regulator, "Initiation"
@@ -638,13 +389,13 @@ describe("RewardRegulator.sol", function () {
 
       expect(totalAlloc).to.equal(DENOMINATOR);
       expect(await this.regulator.initiated()).to.equal(true);
-      expect(await this.regulator.mintersLength()).to.equal(length);
+      expect((await this.regulator.getMinters()).length).to.equal(length);
 
     });
 
     it("reverts when total alloc higher than denominator", async function () {
       expect(await this.regulator.initiated()).to.equal(false);
-      expect(await this.regulator.mintersLength()).to.equal("0");
+      expect((await this.regulator.getMinters()).length).to.equal(0);
 
       var length = 7;
       var [recipients, allocations] = generateRecipients(length);
@@ -665,12 +416,12 @@ describe("RewardRegulator.sol", function () {
       }
 
       expect(await this.regulator.initiated()).to.equal(false);
-      expect(await this.regulator.mintersLength()).to.equal("0");
+      expect((await this.regulator.getMinters()).length).to.equal(0);
     });
 
     it("reverts when total alloc less than denominator", async function () {
       expect(await this.regulator.initiated()).to.equal(false);
-      expect(await this.regulator.mintersLength()).to.equal("0");
+      expect((await this.regulator.getMinters()).length).to.equal(0);
 
       var length = 7;
       var [recipients, allocations] = generateRecipients(length);
@@ -696,12 +447,12 @@ describe("RewardRegulator.sol", function () {
       }
 
       expect(await this.regulator.initiated()).to.equal(false);
-      expect(await this.regulator.mintersLength()).to.equal("0");
+      expect((await this.regulator.getMinters()).length).to.equal(0);
     });
 
     it("reverts when recipients array length is less", async function () {
       expect(await this.regulator.initiated()).to.equal(false);
-      expect(await this.regulator.mintersLength()).to.equal("0");
+      expect((await this.regulator.getMinters()).length).to.equal(0);
 
       var length = 7;
       var [recipients, allocations] = generateRecipients(length);
@@ -713,12 +464,12 @@ describe("RewardRegulator.sol", function () {
       );
 
       expect(await this.regulator.initiated()).to.equal(false);
-      expect(await this.regulator.mintersLength()).to.equal("0");
+      expect((await this.regulator.getMinters()).length).to.equal(0);
     });
 
     it("reverts when allocations array length is less", async function () {
       expect(await this.regulator.initiated()).to.equal(false);
-      expect(await this.regulator.mintersLength()).to.equal("0");
+      expect((await this.regulator.getMinters()).length).to.equal(0);
 
       var length = 7;
       var [recipients, allocations] = generateRecipients(length);
@@ -730,12 +481,12 @@ describe("RewardRegulator.sol", function () {
       );
 
       expect(await this.regulator.initiated()).to.equal(false);
-      expect(await this.regulator.mintersLength()).to.equal("0");
+      expect((await this.regulator.getMinters()).length).to.equal(0);
     });
 
     it("reverts when the new allocation is the same", async function () {
       expect(await this.regulator.initiated()).to.equal(false);
-      expect(await this.regulator.mintersLength()).to.equal("0");
+      expect((await this.regulator.getMinters()).length).to.equal(0);
 
       var length = 7;
       var [recipients, allocations] = generateRecipients(length);
@@ -763,7 +514,7 @@ describe("RewardRegulator.sol", function () {
 
       expect(totalAlloc).to.equal(DENOMINATOR);
       expect(await this.regulator.initiated()).to.equal(true);
-      expect(await this.regulator.mintersLength()).to.equal(length);
+      expect((await this.regulator.getMinters()).length).to.equal(length);
 
       await expect(this.regulator.setMinters(recipients, allocations)).to.be.revertedWith(
         "RewardRegulator::setMinters: new allocation must not be same"
@@ -771,7 +522,7 @@ describe("RewardRegulator.sol", function () {
 
       expect(totalAlloc).to.equal(DENOMINATOR);
       expect(await this.regulator.initiated()).to.equal(true);
-      expect(await this.regulator.mintersLength()).to.equal(length);
+      expect((await this.regulator.getMinters()).length).to.equal(length);
     });
 
   });
@@ -977,6 +728,101 @@ describe("RewardRegulator.sol", function () {
       expect(unminted).to.equal(expectedRewards);
     });
 
+    it("none can mint when paused", async function () {
+      expect(await this.regulator.pause()).to.emit(this.regulator, "Paused");
+
+      expect(await this.regulator.setMinters([this.admin.address], [DENOMINATOR])).to.emit(
+        this.regulator, "NewAllocation"
+      );
+
+      var blockNumber = await ethers.provider.getBlockNumber();
+      var blockTime = (await ethers.provider.getBlock(blockNumber)).timestamp;
+
+      await ethers.provider.send("evm_increaseTime", [ONE_DAY.toNumber()]);
+
+      expect(await this.regulator.setRewards()).to.emit(
+        this.regulator, "RewardDeclaration"
+      );
+
+      var newBlockNumber = await ethers.provider.getBlockNumber();
+      var newBlockTime = (await ethers.provider.getBlock(newBlockNumber)).timestamp;
+      var interval = newBlockTime - blockTime;
+
+      var minter = await this.regulator.minters(this.admin.address);
+      var expectedRewards = getRewards(interval, DENOMINATOR, HALF_SUPPLY);
+      expect(minter.unminted).to.equal(expectedRewards);
+      expect(minter.lastUpdate).to.equal(newBlockTime);
+      expect(await this.regulator.totalEmitted()).to.equal(expectedRewards);
+
+      await expect(this.regulator.mint(this.admin.address, expectedRewards))
+        .to.be.revertedWith("Pausable: paused");
+
+      expect(await this.happy.balanceOf(this.admin.address)).to.equal("0");
+      expect(await this.happy.totalSupply()).to.equal("0");
+
+    });
+
+
+  });
+
+
+  //////////////////////////////
+  //     pause
+  //////////////////////////////
+  describe("pause", function () {
+    it("unauthorized cannot pause", async function () {
+      regulator = await this.regulator.connect(this.unauthorized);
+
+      expect(await this.regulator.paused()).to.equal(false);
+
+      await expect(regulator.pause())
+        .to.be.revertedWith("Ownable: caller is not the owner");
+
+      expect(await this.regulator.paused()).to.equal(false);
+    });
+
+    it("authorized can pause", async function () {
+      expect(await this.regulator.paused()).to.equal(false);
+
+      expect(await this.regulator.pause()).to.emit(this.regulator, "Paused");
+
+      expect(await this.regulator.paused()).to.equal(true);
+    });
+
+  });
+
+
+  //////////////////////////////
+  //     resume
+  //////////////////////////////
+  describe("resume", function () {
+    it("unauthorized cannot resume", async function () {
+      expect(await this.regulator.paused()).to.equal(false);
+
+      expect(await this.regulator.pause()).to.emit(this.regulator, "Paused");
+
+      expect(await this.regulator.paused()).to.equal(true);
+
+      regulator = await this.regulator.connect(this.unauthorized);
+
+      await expect(regulator.resume())
+        .to.be.revertedWith("Ownable: caller is not the owner");
+
+      expect(await this.regulator.paused()).to.equal(true);
+    });
+
+    it("authorized can resume", async function () {
+      expect(await this.regulator.paused()).to.equal(false);
+
+      expect(await this.regulator.pause()).to.emit(this.regulator, "Paused");
+
+      expect(await this.regulator.paused()).to.equal(true);
+
+      expect(await this.regulator.resume()).to.emit(this.regulator, "Unpaused");
+
+      expect(await this.regulator.paused()).to.equal(false);
+    });
+
   });
 
 
@@ -1043,7 +889,7 @@ describe("RewardRegulator.sol", function () {
       var blockNumber = await ethers.provider.getBlockNumber();
       var blockTime = (await ethers.provider.getBlock(blockNumber)).timestamp;
 
-      expect(await this.regulator.mintersLength()).to.equal(length);
+      expect((await this.regulator.getMinters()).length).to.equal(length);
 
       var newHalfSupply = HALF_SUPPLY.sub(ONE_DAY.mul("30")).add("1");
 
@@ -1076,7 +922,7 @@ describe("RewardRegulator.sol", function () {
 
       expect(totalAlloc).to.equal(DENOMINATOR);
       expect(await this.regulator.initiated()).to.equal(true);
-      expect(await this.regulator.mintersLength()).to.equal(length);
+      expect((await this.regulator.getMinters()).length).to.equal(length);
     });
 
     it("sets half supply when a minter alloc is zero", async function () {
@@ -1090,7 +936,7 @@ describe("RewardRegulator.sol", function () {
       var blockNumber = await ethers.provider.getBlockNumber();
       var blockTime = (await ethers.provider.getBlock(blockNumber)).timestamp;
 
-      expect(await this.regulator.mintersLength()).to.equal(length);
+      expect((await this.regulator.getMinters()).length).to.equal(length);
 
       var newHalfSupply = HALF_SUPPLY.sub(ONE_DAY.mul("30")).add("1");
 
@@ -1124,7 +970,7 @@ describe("RewardRegulator.sol", function () {
 
       expect(totalAlloc).to.equal(DENOMINATOR);
       expect(await this.regulator.initiated()).to.equal(true);
-      expect(await this.regulator.mintersLength()).to.equal(length);
+      expect((await this.regulator.getMinters()).length).to.equal(length);
 
       var zeroAllocations = [];
       for (let i = 0; i < length; i++) {
@@ -1158,7 +1004,7 @@ describe("RewardRegulator.sol", function () {
 
       expect(totalAlloc).to.equal("0");
       expect(await this.regulator.initiated()).to.equal(false);
-      expect(await this.regulator.mintersLength()).to.equal(length);
+      expect((await this.regulator.getMinters()).length).to.equal(0);
 
       await ethers.provider.send("evm_increaseTime", [ONE_DAY.mul("2").toNumber()]);
 
@@ -1191,7 +1037,7 @@ describe("RewardRegulator.sol", function () {
 
       expect(totalAlloc).to.equal("0");
       expect(await this.regulator.initiated()).to.equal(false);
-      expect(await this.regulator.mintersLength()).to.equal(length);
+      expect((await this.regulator.getMinters()).length).to.equal(0);
 
       var totalReward = getRewards((newBlockTime - blockTime), DENOMINATOR, HALF_SUPPLY)
         .add(getRewards((newerBlockTime - newBlockTime), DENOMINATOR, newHalfSupply))
