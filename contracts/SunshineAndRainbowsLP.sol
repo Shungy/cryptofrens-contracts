@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: UNLICENSED
-// ALL RIGHTS RESERVED
 // solhint-disable not-rely-on-time
 pragma solidity ^0.8.0;
 
@@ -12,6 +11,8 @@ contract SunshineAndRainbowsLP is SunshineAndRainbows {
 
     IPangolinRouter public immutable router;
     IPangolinPair public immutable pair;
+
+    address private immutable _happy;
 
     /// @notice Child position ID => Parent position ID
     mapping(uint => uint) public parents;
@@ -26,6 +27,7 @@ contract SunshineAndRainbowsLP is SunshineAndRainbows {
     ) SunshineAndRainbows(_stakingToken, _rewardRegulator) {
         router = IPangolinRouter(_router);
         pair = IPangolinPair(_stakingToken);
+        _happy = IRewardRegulator(_rewardRegulator).happy();
     }
 
     // special harvest method that does not reset APR
@@ -37,6 +39,11 @@ contract SunshineAndRainbowsLP is SunshineAndRainbows {
         // harvest //
         /////////////
         _updateRewardVariables();
+        positions[posId].reward = earned(
+            posId,
+            _idealPosition,
+            _rewardsPerStakingDuration
+        );
         uint reward = _harvest(posId, address(this));
         require(reward != 0, "SARS::compound: no reward");
 
@@ -77,11 +84,11 @@ contract SunshineAndRainbowsLP is SunshineAndRainbows {
 
         uint pairAmount;
         address pairToken;
-        if (pair.token0() == stakingToken) {
+        if (pair.token0() == _happy) {
             pairToken = pair.token1();
             pairAmount = (reward * reserve1) / reserve0;
         } else {
-            require(pair.token1() == stakingToken, "unavailable");
+            require(pair.token1() == _happy, "unavailable");
             pairToken = pair.token0();
             pairAmount = (reward * reserve0) / reserve1;
         }
@@ -92,8 +99,11 @@ contract SunshineAndRainbowsLP is SunshineAndRainbows {
             pairAmount
         );
 
+        IERC20(_happy).approve(address(router), reward);
+        IERC20(pairToken).approve(address(router), pairAmount);
+
         (, , uint amount) = router.addLiquidity(
-            stakingToken, // tokenA
+            _happy, // tokenA
             pairToken, // tokenB
             reward, // amountADesired
             pairAmount, // amountBDesired

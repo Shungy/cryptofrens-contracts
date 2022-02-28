@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: UNLICENSED
-// ALL RIGHTS RESERVED
 // solhint-disable not-rely-on-time
 pragma solidity ^0.8.0;
 
@@ -14,6 +13,8 @@ interface IRewardRegulator {
     function setRewards() external returns (uint);
 
     function mint(address to, uint amount) external;
+
+    function happy() external returns (address);
 }
 
 /**
@@ -46,6 +47,16 @@ contract SunshineAndRainbows is Pausable, Ownable {
 
     /// @notice Sum of all active positions’ `lastUpdate * balance`
     uint private _sumOfEntryTimes;
+
+    /// @dev This will not cause overflow for ten thousand years even in the
+    /// worst theoretical scenario given reward token total supply is not
+    /// greater than 100 quadrillion * 10^18. If reward token total supply is
+    /// greater than that, decrease the precision. Even with this precision,
+    /// a very low reward rate and high amount of staking tokens can result
+    /// in zero rewards. Therefore ensure that reward rate per second to
+    /// total staked supply ratio will be greater than 1/(3*10^18) during the
+    /// distribution period
+    uint private constant PRECISION = 10**30;
 
     /**
      * @notice Sum of all intervals’ (`rewards`/`stakingDuration`)
@@ -92,6 +103,9 @@ contract SunshineAndRainbows is Pausable, Ownable {
     /* ========== EXTERNAL VIEWS ========== */
 
     function pendingRewards(uint posId) external view returns (int) {
+        if (!(_lastUpdate == block.timestamp || totalSupply == 0)) {
+            return earned(posId, _idealPosition, _rewardsPerStakingDuration);
+        }
         (uint x, uint y) = rewardVariables(
             rewardRegulator.getRewards(address(this))
         );
@@ -150,7 +164,7 @@ contract SunshineAndRainbows is Pausable, Ownable {
         Position memory position = positions[posId];
         address sender = msg.sender;
 
-        require(amount > 0, "SARS::withdraw: zero amount");
+        require(amount != 0, "SARS::withdraw: zero amount");
         require(position.owner == sender, "SARS::withdraw: unauthorized");
 
         _withdrawCheck(posId);
@@ -185,7 +199,7 @@ contract SunshineAndRainbows is Pausable, Ownable {
      * @param to Owner of the new position
      */
     function stake(uint amount, address to) external virtual whenNotPaused {
-        require(amount > 0, "SARS::stake: zero amount");
+        require(amount != 0, "SARS::stake: zero amount");
         require(to != address(0), "SARS::stake: bad recipient");
 
         // if this is the first stake event, initialize
@@ -220,7 +234,7 @@ contract SunshineAndRainbows is Pausable, Ownable {
         uint posId,
         uint idealPosition,
         uint rewardsPerStakingDuration
-    ) private view returns (int) {
+    ) internal view returns (int) {
         Position memory position = positions[posId];
         return
             int(
@@ -229,7 +243,7 @@ contract SunshineAndRainbows is Pausable, Ownable {
                     (rewardsPerStakingDuration -
                         position.rewardsPerStakingDuration) *
                     (position.lastUpdate - initTime)) * position.balance
-            ) + position.reward;
+            / PRECISION) + position.reward;
     }
 
     function rewardVariables(uint rewards) private view returns (uint, uint) {
@@ -237,16 +251,16 @@ contract SunshineAndRainbows is Pausable, Ownable {
         uint stakingDuration = block.timestamp * totalSupply - _sumOfEntryTimes;
         return (
             _idealPosition +
-                ((block.timestamp - initTime) * rewards) /
+                ((block.timestamp - initTime) * rewards * PRECISION) /
                 stakingDuration,
-            _rewardsPerStakingDuration + rewards / stakingDuration
+            _rewardsPerStakingDuration + rewards * PRECISION / stakingDuration
         );
     }
 
     /* ========== INTERNAL FUNCTIONS ========== */
 
     function _updateRewardVariables() internal {
-        if (_lastUpdate != block.timestamp && totalSupply > 0) {
+        if (!(_lastUpdate == block.timestamp || totalSupply == 0)) {
             _lastUpdate = block.timestamp;
             (_idealPosition, _rewardsPerStakingDuration) = rewardVariables(
                 rewardRegulator.setRewards()
@@ -290,7 +304,7 @@ contract SunshineAndRainbows is Pausable, Ownable {
 
     function _harvest(uint posId, address to) internal returns (uint) {
         uint reward = uint(positions[posId].reward);
-        if (reward > 0) {
+        if (reward != 0) {
             positions[posId].reward = 0;
             rewardRegulator.mint(to, reward);
             emit Harvest(posId, reward);

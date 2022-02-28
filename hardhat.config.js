@@ -22,10 +22,7 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 module.exports = {
   networks: {
     hardhat: {
-      chainId: 43112,
-      forking: {
-        url: "https://api.avax.network/ext/bc/C/rpc",
-      },
+      chainId: 43112
     },
     fuji: {
       url: "https://api.avax-test.network/ext/bc/C/rpc",
@@ -39,7 +36,22 @@ module.exports = {
   solidity: {
     compilers: [
       {
-        version: "0.8.4"
+        version: "0.8.4",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1000
+          }
+        }
+      },
+      {
+        version: "0.6.6",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1000
+          }
+        }
       },
       {
         version: "0.5.16"

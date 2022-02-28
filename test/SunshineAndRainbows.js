@@ -10,14 +10,15 @@ const ONE_DAY = BigNumber.from("86400");
 const HALF_SUPPLY = ONE_DAY.mul("200");
 const TOTAL_SUPPLY = ethers.utils.parseUnits("10000000", 18);
 const ZERO_ADDRESS = ethers.constants.AddressZero;
+const PRECISION = ethers.utils.parseUnits("1", 30);
 
 function getRewards(interval) {
   return TOTAL_SUPPLY.mul(interval).div(HALF_SUPPLY.add(interval));
 }
 
 function updateRewardVariables(rewards, stakingDuration, sinceInit) {
-  var idealPosition = rewards.mul(sinceInit).div(stakingDuration);
-  var rewardsPerStakingDuration = rewards.div(stakingDuration);
+  var idealPosition = rewards.mul(PRECISION).mul(sinceInit).div(stakingDuration);
+  var rewardsPerStakingDuration = rewards.mul(PRECISION).div(stakingDuration);
 
   return [idealPosition, rewardsPerStakingDuration];
 }
