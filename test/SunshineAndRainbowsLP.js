@@ -147,6 +147,12 @@ describe("SunshineAndRainbowsLP.sol", function () {
       await this.wavax.approve(this.sunshine.address, TOTAL_SUPPLY);
       await this.sunshine.compound("1", this.admin.address);
 
+      //var position = await this.sunshine.positions("1");
+
+      //console.log(position.reward.toString());
+      //var pending = await this.sunshine.pendingRewards("1");
+      //console.log(pending.toString());
+
     });
 
   });

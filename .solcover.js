@@ -1,3 +1,3 @@
 module.exports = {
-  skipFiles: ['mocks', 'other']
+  skipFiles: ['mocks', 'pangolin-core', 'pangolin-periphery', 'pangolin-lib', 'other']
 };
