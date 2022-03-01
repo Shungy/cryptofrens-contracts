@@ -105,6 +105,7 @@ async function main() {
     [9000, 1000]
   );
   await regulator.transferOwnership(admin);
+  console.log('OWNER = "' + admin + '"');
 }
 
 main()
