@@ -104,6 +104,7 @@ async function main() {
     [sunshineLP.address, sunshineERC721.address],
     [9000, 1000]
   );
+  await regulator.transferOwnership(admin);
 }
 
 main()
