@@ -8,7 +8,7 @@
     "deploy": "export LANG=C && npx hardhat run scripts/deploy.js",
     "node": "export LANG=C && npx hardhat node",
     "test": "export LANG=C && npx hardhat test",
-    "lint": "solhint 'contracts/**/*.sol'",
+    "lint": "solhint 'contracts/*.sol'",
     "graph": "surya graph contracts/*.sol | dot -Tpng > graph.png && sxiv graph.png",
     "size": "export LANG=C && npx hardhat size-contracts",
     "coverage": "export LANG=C && npx hardhat coverage"
