@@ -30,9 +30,7 @@ contract Happy is ERC20Burnable, Ownable {
         require(maxSupply >= totalSupply(), "Happy::mint: amount too high");
     }
 
-    /**
-     * @dev Open Zeppelin’s TimelockController should be set as the owner.
-     */
+    /// @dev Set TimelockController as the owner
     function setMinter(address newMinter) external onlyOwner {
         minter = newMinter;
         emit NewMinter(minter);
