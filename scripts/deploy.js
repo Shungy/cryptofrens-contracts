@@ -13,9 +13,7 @@ async function main() {
   const SunshineLP = await ethers.getContractFactory("SunshineAndRainbowsLP");
   const SunshineERC721 = await ethers.getContractFactory("SunshineAndRainbowsERC721");
 
-
-
-  const cryptoFrens = await CryptoFrens.attach(cryptoFrensAddress);
+  const Timelock = await ethers.getContractFactory("TimelockController");
 
   // deploy happy
 
