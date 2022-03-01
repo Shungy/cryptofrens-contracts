@@ -1,22 +1,17 @@
-// We require the Hardhat Runtime Environment explicitly here. This is optional
-// but useful for running the script in a standalone fashion through `node <script>`.
-//
-// When running the script with `npx hardhat run <script>` you'll find the Hardhat
-// Runtime Environment's members available in the global scope.
 const hre = require("hardhat");
-require('dotenv').config();
+require("dotenv").config();
+
+if (network.name != "mainnet" || network.config.chainId != 43114) {
+  console.log("Run this script for Avalanche Mainnet deployment only.");
+  console.log("Use `yarn deploy --network mainnet`.");
+  process.exit(1);
+}
+
+const WAVAX = "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7";
+const FRENS = "0xA5Bc94F267e496B10FBe895845a72FE1C4F1Ef43";
+const FACTORY = "0xefa94DE7a4656D787667C749f7E1223D71E9FD88";
 
 async function main() {
-  // Hardhat always runs the compile task when running scripts with its command
-  // line interface.
-  //
-  // If this script is run directly using `node` you may want to call compile
-  // manually to make sure everything is compiled
-  // await hre.run('compile');
-  //
-  var wavaxAddress = process.env.WAVAX_ADDRESS;
-  var cryptoFrensAddress = process.env.FRENS_ADDRESS;
-  var pangolinFactoryAddress = process.env.FACTORY_ADDRESS;
 
   const accounts = await hre.ethers.getSigners();
   const account = accounts[0];
