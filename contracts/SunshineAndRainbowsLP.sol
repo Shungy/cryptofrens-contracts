@@ -2,9 +2,10 @@
 // solhint-disable not-rely-on-time
 pragma solidity ^0.8.0;
 
-import "./interfaces/IPangolinPair.sol";
-import "./interfaces/IPangolinRouter.sol";
 import "./SunshineAndRainbows.sol";
+
+import "./pangolin-core/interfaces/IPangolinPair.sol";
+import "./pangolin-periphery/interfaces/IPangolinRouter.sol";
 
 contract SunshineAndRainbowsLP is SunshineAndRainbows {
     using SafeERC20 for IERC20;
