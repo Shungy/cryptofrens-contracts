@@ -33,26 +33,26 @@ contract Happy is ERC20Burnable, Ownable {
     /**
      * @dev Open Zeppelin’s TimelockController should be set as the owner.
      */
-    function setMinter(address _minter) external onlyOwner {
-        minter = _minter;
+    function setMinter(address newMinter) external onlyOwner {
+        minter = newMinter;
         emit NewMinter(minter);
     }
 
-    function setLogoURI(string memory _logoURI) external onlyOwner {
-        logoURI = _logoURI;
+    function setLogoURI(string memory newLogoURI) external onlyOwner {
+        logoURI = newLogoURI;
     }
 
-    function setExternalURI(string memory _externalURI) external onlyOwner {
-        externalURI = _externalURI;
+    function setExternalURI(string memory newExternalURI) external onlyOwner {
+        externalURI = newExternalURI;
     }
 
-    function setMaxSupply(uint _maxSupply) external onlyOwner {
+    function setMaxSupply(uint newMaxSupply) external onlyOwner {
         require(!hardcapped, "Happy::setMaxSupply: token is hardcapped");
         require(
-            _maxSupply >= totalSupply(),
+            newMaxSupply >= totalSupply(),
             "Happy::setMaxSupply: max supply less than circulating supply"
         );
-        maxSupply = _maxSupply;
+        maxSupply = newMaxSupply;
     }
 
     function hardcap() external onlyOwner {
@@ -69,5 +69,5 @@ contract Happy is ERC20Burnable, Ownable {
         }
     }
 
-    event NewMinter(address minter);
+    event NewMinter(address newMinter);
 }
