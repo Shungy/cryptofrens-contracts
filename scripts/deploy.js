@@ -1,21 +1,20 @@
-const hre = require("hardhat");
-
-if (network.name != "mainnet" || network.config.chainId != 43114) {
-  console.log("Run this script for Avalanche Mainnet deployment only.");
-  console.log("Use `yarn deploy --network mainnet`.");
-  process.exit(1);
-}
-
-const WAVAX = "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7";
-const FRENS = "0xA5Bc94F267e496B10FBe895845a72FE1C4F1Ef43";
-const FACTORY = "0xefa94DE7a4656D787667C749f7E1223D71E9FD88";
+const ethers = require("hardhat");
 
 async function main() {
 
-  const accounts = await hre.ethers.getSigners();
-  const account = accounts[0];
+  const [ deployer ] = await ethers.getSigners();
 
-  const CryptoFrens = await hre.ethers.getContractFactory("CryptoFrens");
+  const Frens = await ethers.getContractFactory("CryptoFrens");
+  const Happy = await ethers.getContractFactory("Happy");
+  const Regulator = await ethers.getContractFactory("RewardRegulator");
+  const Router = await ethers.getContractFactory("PangolinRouter");
+  const Factory = await ethers.getContractFactory("PangolinFactory");
+
+  const SunshineLP = await ethers.getContractFactory("SunshineAndRainbowsLP");
+  const SunshineERC721 = await ethers.getContractFactory("SunshineAndRainbowsERC721");
+
+
+
   const cryptoFrens = await CryptoFrens.attach(cryptoFrensAddress);
 
   // deploy happy
@@ -63,3 +62,4 @@ main()
     console.error(error);
     process.exit(1);
   });
+
