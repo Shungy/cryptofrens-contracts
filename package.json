@@ -5,7 +5,7 @@
   "main": ".eslintrc.js",
   "scripts": {
     "compile": "export LANG=C && npx hardhat compile",
-    "deploy": "export LANG=C && npx hardhat run scripts/deploy.js > .contracts.env",
+    "deploy": "export LANG=C && npx hardhat run scripts/deploy.js",
     "node": "export LANG=C && npx hardhat node",
     "test": "export LANG=C && npx hardhat test",
     "lint": "solhint 'contracts/**/*.sol'",
