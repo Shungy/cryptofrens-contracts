@@ -11,7 +11,7 @@
     "lint": "solhint 'contracts/*.sol'",
     "size": "export LANG=C && npx hardhat size-contracts",
     "coverage": "export LANG=C && npx hardhat coverage",
-    "graph": "surya graph contracts/*.sol | dot -Tpng > graph.png && sxiv graph.png"
+    "graph": "surya graph contracts/*.sol | dot -Tpng > documents/architecture.png"
   },
   "author": "Shung",
   "license": "GPLv3",
