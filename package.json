@@ -1,7 +1,7 @@
 {
   "name": "happy",
   "version": "1.0.0",
-  "description": "",
+  "description": "Sunshine and Rainbows staking algorithm and its implementation.",
   "main": ".eslintrc.js",
   "scripts": {
     "compile": "export LANG=C && npx hardhat compile",
@@ -13,8 +13,8 @@
     "coverage": "export LANG=C && npx hardhat coverage",
     "graph": "surya graph contracts/*.sol | dot -Tpng > graph.png && sxiv graph.png"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "Shung",
+  "license": "GPLv3",
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
