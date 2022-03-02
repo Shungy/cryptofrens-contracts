@@ -32,7 +32,7 @@ contract SunshineAndRainbowsLP is SunshineAndRainbows {
     }
 
     // special harvest method that does not reset APR
-    function compound(uint posId, address to) public virtual whenNotPaused {
+    function compound(uint posId, address to) external virtual whenNotPaused {
         Position memory position = positions[posId];
         require(position.owner == msg.sender, "SARS::compound: unauthorized");
         require(to != address(0), "SARS::compound: invalid to address");

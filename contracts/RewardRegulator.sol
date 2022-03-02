@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPLv3
-// Author: shung from https://cryptofrens.xyz/
 // solhint-disable not-rely-on-time
 pragma solidity ^0.8.0;
 
@@ -24,27 +23,10 @@ interface IHappy {
  * token security to MiniChef, while allowing more flexibility as to how the
  * tokens are distributed to stakers. It also does not require funding, as it
  * mints directly from the token contract.
+ * @author shung for Pangolin & cryptofrens.xyz
  */
 contract RewardRegulator is Ownable, Pausable {
     using EnumerableSet for EnumerableSet.AddressSet;
-
-    /// @notice The reward token the contract will distribute
-    IHappy public immutable happy;
-
-    /// @notice The divisor for allocations
-    uint private constant DENOMINATOR = 10000;
-
-    /// @notice A constant used in the emission schedule expression
-    uint public halfSupply = 200 days;
-
-    /// @notice The timestamp of the last time halfSupply was updated
-    uint public halfSupplyLastUpdate;
-
-    /// @notice The amount of reward tokens that were minted through `mint()`
-    uint public totalEmitted;
-
-    /// @notice Whether the sum of allocations equal zero or `DENOMINATOR`
-    bool public initiated;
 
     /// @notice The information stored for an account (i.e. minter contract)
     struct Minter {
@@ -64,44 +46,53 @@ contract RewardRegulator is Ownable, Pausable {
     /// @notice A set of minter addresses with non-zero allocation
     EnumerableSet.AddressSet private _minterAddresses;
 
-    /**
-     * @notice Construct a new RewardRegulator contract
-     * @param rewardToken The reward token the contract will distribute
-     * @dev reward token must have `mint()` and `mintableTotal()` function
-     */
+    /// @notice The reward token the contract will distribute
+    IHappy public immutable happy;
+
+    /// @notice The divisor for allocations
+    uint private constant DENOMINATOR = 10000;
+
+    /// @notice A constant used in the emission schedule expression
+    uint public halfSupply = 200 days;
+
+    /// @notice The timestamp of the last time halfSupply was updated
+    uint public halfSupplyLastUpdate;
+
+    /// @notice The amount of reward tokens that were minted through `mint()`
+    uint public totalEmitted;
+
+    /// @notice Whether the sum of allocations equal zero or `DENOMINATOR`
+    bool public initiated;
+
+    /// @notice The event that is emitted when an account’s allocation changes
+    event NewAllocation(address indexed account, uint newAllocation);
+
+    /// @notice The event that is emitted when half supply changes
+    event NewHalfSupply(uint newHalfSupply);
+
+    /// @notice The event that is emitted when an account’s rewards are declared
+    event RewardDeclaration(address indexed account, uint rewards);
+
+    /// @notice The event for total allocations changing from zero or to zero
+    event Initiation(bool initiated);
+
+    /// @notice Construct a new RewardRegulator contract
+    /// @param rewardToken The reward token the contract will distribute
+    /// @dev reward token must have `mint()` and `mintableTotal()` function
     constructor(address rewardToken) {
         happy = IHappy(rewardToken);
     }
 
-    /**
-     * @notice Gets the accounts with allocations
-     * @return The list of minter addresses
-     */
-    function getMinters() external view returns (address[] memory) {
-        return _minterAddresses.values();
+    function pause() external onlyOwner {
+        _pause();
     }
 
-    /**
-     * @notice Gets the amount of reward tokens yet to be declared for account
-     * @param account Address of the contract to check rewards
-     * @return The amount of reward accumulated since the last declaration
-     */
-    function getRewards(address account) public view returns (uint) {
-        Minter memory minter = minters[account];
-        uint interval = block.timestamp - minter.lastUpdate;
-        return
-            minter.undeclared +
-            (interval *
-                (happy.mintableTotal() - totalEmitted) *
-                minter.allocation) /
-            DENOMINATOR /
-            (halfSupply + interval);
+    function resume() external onlyOwner {
+        _unpause();
     }
 
-    /**
-     * @notice Requests the declaration of rewards for the message sender
-     * @return The amount of reward tokens that became eligible for minting
-     */
+    /// @notice Requests the declaration of rewards for the message sender
+    /// @return The amount of reward tokens that became eligible for minting
     function setRewards() external returns (uint) {
         address sender = msg.sender;
         uint rewards = getRewards(sender);
@@ -113,11 +104,9 @@ contract RewardRegulator is Ownable, Pausable {
         return rewards;
     }
 
-    /**
-     * @notice Mints the `amount` of tokens to `to`
-     * @param to The recipient address of the freshly minted tokens
-     * @param amount The amount of tokens to mint
-     */
+    /// @notice Mints the `amount` of tokens to `to`
+    /// @param to The recipient address of the freshly minted tokens
+    /// @param amount The amount of tokens to mint
     function mint(address to, uint amount) external whenNotPaused {
         address sender = msg.sender;
         require(
@@ -130,11 +119,9 @@ contract RewardRegulator is Ownable, Pausable {
         happy.mint(to, amount);
     }
 
-    /**
-     * @notice Changes minter allocations
-     * @param accounts The list of addresses to have a new allocation
-     * @param allocations The list of allocations corresponding to `accounts`
-     */
+    /// @notice Changes minter allocations
+    /// @param accounts The list of addresses to have a new allocation
+    /// @param allocations The list of allocations corresponding to `accounts`
     function setMinters(address[] memory accounts, uint[] memory allocations)
         external
         onlyOwner
@@ -190,11 +177,9 @@ contract RewardRegulator is Ownable, Pausable {
         }
     }
 
-    /**
-     * @notice Changes halfSupply
-     * @dev Beware of gas spending. Too many minters can create problems
-     * @param newHalfSupply The new halfSupply
-     */
+    /// @notice Changes halfSupply
+    /// @dev Beware of gas spending. Too many minters can create problems
+    /// @param newHalfSupply The new halfSupply
     function setHalfSupply(uint newHalfSupply) external onlyOwner {
         require(
             newHalfSupply > 10 days,
@@ -226,23 +211,24 @@ contract RewardRegulator is Ownable, Pausable {
         emit NewHalfSupply(halfSupply);
     }
 
-    function pause() external onlyOwner {
-        _pause();
+    /// @notice Gets the accounts with allocations
+    /// @return The list of minter addresses
+    function getMinters() external view returns (address[] memory) {
+        return _minterAddresses.values();
     }
 
-    function resume() external onlyOwner {
-        _unpause();
+    /// @notice Gets the amount of reward tokens yet to be declared for account
+    /// @param account Address of the contract to check rewards
+    /// @return The amount of reward accumulated since the last declaration
+    function getRewards(address account) public view returns (uint) {
+        Minter memory minter = minters[account];
+        uint interval = block.timestamp - minter.lastUpdate;
+        return
+            minter.undeclared +
+            (interval *
+                (happy.mintableTotal() - totalEmitted) *
+                minter.allocation) /
+            DENOMINATOR /
+            (halfSupply + interval);
     }
-
-    /// @notice The event that is emitted when an account’s allocation changes
-    event NewAllocation(address indexed account, uint newAllocation);
-
-    /// @notice The event that is emitted when half supply changes
-    event NewHalfSupply(uint newHalfSupply);
-
-    /// @notice The event that is emitted when an account’s rewards are declared
-    event RewardDeclaration(address indexed account, uint rewards);
-
-    /// @notice The event for total allocations changing from zero or to zero
-    event Initiation(bool initiated);
 }

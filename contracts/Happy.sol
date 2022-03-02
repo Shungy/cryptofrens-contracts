@@ -17,12 +17,10 @@ contract Happy is ERC20Burnable, Ownable {
 
     bool public hardcapped;
 
+    event NewMinter(address newMinter);
+
     // solhint-disable-next-line no-empty-blocks
     constructor() ERC20("Happiness", "HAPPY") {}
-
-    function mintableTotal() external view returns (uint) {
-        return maxSupply + burnedSupply;
-    }
 
     function mint(address account, uint amount) external {
         require(msg.sender == minter, "Happy::mint: unauthorized sender");
@@ -57,6 +55,10 @@ contract Happy is ERC20Burnable, Ownable {
         hardcapped = true;
     }
 
+    function mintableTotal() external view returns (uint) {
+        return maxSupply + burnedSupply;
+    }
+
     function _afterTokenTransfer(
         address,
         address to,
@@ -66,6 +68,4 @@ contract Happy is ERC20Burnable, Ownable {
             burnedSupply += amount;
         }
     }
-
-    event NewMinter(address newMinter);
 }
