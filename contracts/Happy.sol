@@ -17,12 +17,10 @@ contract Happy is ERC20Burnable, Ownable {
 
     bool public hardcapped;
 
+    event NewMinter(address newMinter);
+
     // solhint-disable-next-line no-empty-blocks
     constructor() ERC20("Happiness", "HAPPY") {}
-
-    function mintableTotal() external view returns (uint) {
-        return maxSupply + burnedSupply;
-    }
 
     function mint(address account, uint amount) external {
         require(msg.sender == minter, "Happy::mint: unauthorized sender");
@@ -30,33 +28,35 @@ contract Happy is ERC20Burnable, Ownable {
         require(maxSupply >= totalSupply(), "Happy::mint: amount too high");
     }
 
-    /**
-     * @dev Open Zeppelin’s TimelockController should be set as the owner.
-     */
-    function setMinter(address _minter) external onlyOwner {
-        minter = _minter;
+    /// @dev Set TimelockController as the owner
+    function setMinter(address newMinter) external onlyOwner {
+        minter = newMinter;
         emit NewMinter(minter);
     }
 
-    function setLogoURI(string memory _logoURI) external onlyOwner {
-        logoURI = _logoURI;
+    function setLogoURI(string memory newLogoURI) external onlyOwner {
+        logoURI = newLogoURI;
     }
 
-    function setExternalURI(string memory _externalURI) external onlyOwner {
-        externalURI = _externalURI;
+    function setExternalURI(string memory newExternalURI) external onlyOwner {
+        externalURI = newExternalURI;
     }
 
-    function setMaxSupply(uint _maxSupply) external onlyOwner {
+    function setMaxSupply(uint newMaxSupply) external onlyOwner {
         require(!hardcapped, "Happy::setMaxSupply: token is hardcapped");
         require(
-            _maxSupply >= totalSupply(),
+            newMaxSupply >= totalSupply(),
             "Happy::setMaxSupply: max supply less than circulating supply"
         );
-        maxSupply = _maxSupply;
+        maxSupply = newMaxSupply;
     }
 
     function hardcap() external onlyOwner {
         hardcapped = true;
+    }
+
+    function mintableTotal() external view returns (uint) {
+        return maxSupply + burnedSupply;
     }
 
     function _afterTokenTransfer(
@@ -68,6 +68,4 @@ contract Happy is ERC20Burnable, Ownable {
             burnedSupply += amount;
         }
     }
-
-    event NewMinter(address minter);
 }

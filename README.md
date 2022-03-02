@@ -22,7 +22,7 @@ supply means `maxSupply + burnedSupply - emittedSupply`. The emitted supply is t
 that has been marked as mintable up to that point by the minter contract. Not all
 `emittedSupply` has to be minted at that point. `maxSupply` will be set to 10 million.
 
-![Emission Schedule](images/happy-emission.png "Ideal emission schedule")
+![Emission Schedule](documents/emission-schedule.png "Ideal emission schedule")
 
 The above curve is the idealized emission schedule. In practice, circulating supply
 will be lagging behind the idealized emission schedule, and the sporadic burning of

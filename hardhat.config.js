@@ -24,11 +24,11 @@ module.exports = {
     hardhat: {
       chainId: 43112
     },
-    fuji: {
+    avalanche_fuji: {
       url: "https://api.avax-test.network/ext/bc/C/rpc",
       accounts: [process.env.PRIVATE_KEY]
     },
-    mainnet: {
+    avalanche_mainnet: {
       url: "https://node.snowapi.net/ext/bc/C/rpc",
       accounts: [process.env.PRIVATE_KEY]
     },

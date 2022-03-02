@@ -2,9 +2,10 @@
 // solhint-disable not-rely-on-time
 pragma solidity ^0.8.0;
 
-import "./interfaces/IPangolinPair.sol";
-import "./interfaces/IPangolinRouter.sol";
 import "./SunshineAndRainbows.sol";
+
+import "./pangolin-core/interfaces/IPangolinPair.sol";
+import "./pangolin-periphery/interfaces/IPangolinRouter.sol";
 
 contract SunshineAndRainbowsLP is SunshineAndRainbows {
     using SafeERC20 for IERC20;
@@ -30,8 +31,8 @@ contract SunshineAndRainbowsLP is SunshineAndRainbows {
         _happy = IRewardRegulator(_rewardRegulator).happy();
     }
 
-    // special harvest method that does not reset APR
-    function compound(uint posId, address to) public virtual whenNotPaused {
+    /// @dev special harvest method that does not reset APR
+    function compound(uint posId, address to) external virtual whenNotPaused {
         Position memory position = positions[posId];
         require(position.owner == msg.sender, "SARS::compound: unauthorized");
         require(to != address(0), "SARS::compound: invalid to address");

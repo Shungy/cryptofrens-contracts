@@ -153,6 +153,10 @@ describe("SunshineAndRainbowsLP.sol", function () {
       //var pending = await this.sunshine.pendingRewards("1");
       //console.log(pending.toString());
 
+      // ADD MORE CHECKS HERE.
+    });
+
+    it.skip("revert: withdraw without an update to parent", async function () {
     });
 
   });
