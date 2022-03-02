@@ -31,7 +31,7 @@ contract SunshineAndRainbowsLP is SunshineAndRainbows {
         _happy = IRewardRegulator(_rewardRegulator).happy();
     }
 
-    // special harvest method that does not reset APR
+    /// @dev special harvest method that does not reset APR
     function compound(uint posId, address to) external virtual whenNotPaused {
         Position memory position = positions[posId];
         require(position.owner == msg.sender, "SARS::compound: unauthorized");
