@@ -91,6 +91,10 @@ async function main() {
   await sunshineLP.deployed();
   console.log('SUNSHINE_LP = "' + sunshineLP.address + '"');
 
+  // pause sunshineLP and transfer ownership
+  await sunshineLP.pause();
+  await sunshineLP.transferOwnership(admin);
+
   // deploy erc721 staking contract
   const sunshineERC721 = await SunshineERC721.deploy(
     frens.address,
@@ -98,6 +102,10 @@ async function main() {
   );
   await sunshineERC721.deployed();
   console.log('SUNSHINE_ERC721 = "' + sunshineERC721.address + '"');
+
+  // pause sunshineERC721 and transfer ownership
+  await sunshineERC721.pause();
+  await sunshineERC721.transferOwnership(admin);
 
   // set beneficiaries of reward regulator. 90% LP, 10% NFT staking
   await regulator.setMinters(
