@@ -8,7 +8,7 @@ const chance = require("chance").Chance();
 const DENOMINATOR = BigNumber.from("10000");
 const ONE_DAY = BigNumber.from("86400");
 const HALF_SUPPLY = ONE_DAY.mul("200");
-const TOTAL_SUPPLY = ethers.utils.parseUnits("10000000", 18);
+const TOTAL_SUPPLY = ethers.utils.parseUnits("69666420130", 15);
 const ZERO_ADDRESS = ethers.constants.AddressZero;
 const LOGO_URI = "https://cryptofrens.xyz/happy/logo.png";
 const EXTERNAL_URI = "https://cryptofrens.xyz/happy";
@@ -58,7 +58,7 @@ describe("Happy.sol", function () {
     });
 
     it("default: maxSupply", async function () {
-      expect(await this.happy.maxSupply()).to.equal(TOTAL_SUPPLY);
+      expect(await this.happy.cap()).to.equal(TOTAL_SUPPLY);
     });
 
     it("default: externalURI", async function () {
@@ -71,10 +71,6 @@ describe("Happy.sol", function () {
 
     it("default: minter", async function () {
       expect(await this.happy.minter()).to.equal(ZERO_ADDRESS);
-    });
-
-    it("default: hardcapped", async function () {
-      expect(await this.happy.hardcapped()).to.equal(false);
     });
 
     it("default: mintableTotal", async function () {
@@ -190,95 +186,6 @@ describe("Happy.sol", function () {
     });
 
   });
-
-
-  //////////////////////////////
-  //     hardcap
-  //////////////////////////////
-  describe("hardcap", function () {
-    it("unauthorized cannot hardcap the token", async function () {
-      expect(await this.happy.hardcapped()).to.equal(false);
-
-      happy = await this.happy.connect(this.unauthorized);
-
-      await expect(happy.hardcap())
-        .to.be.revertedWith("Ownable: caller is not the owner");
-
-      expect(await this.happy.hardcapped()).to.equal(false);
-    });
-
-    it("authorized can hardcap the token", async function () {
-      expect(await this.happy.hardcapped()).to.equal(false);
-
-      await this.happy.hardcap();
-
-      expect(await this.happy.hardcapped()).to.equal(true);
-    });
-
-  });
-
-
-  //////////////////////////////
-  //     setMaxSupply
-  //////////////////////////////
-  describe("setMaxSupply", function () {
-    it("unauthorized cannot set max supply", async function () {
-      expect(await this.happy.maxSupply()).to.equal(TOTAL_SUPPLY);
-
-      happy = await this.happy.connect(this.unauthorized);
-
-      await expect(happy.setMaxSupply(TOTAL_SUPPLY.add("1")))
-        .to.be.revertedWith("Ownable: caller is not the owner");
-
-      expect(await this.happy.maxSupply()).to.equal(TOTAL_SUPPLY);
-    });
-
-    it("authorized can set max supply", async function () {
-      expect(await this.happy.maxSupply()).to.equal(TOTAL_SUPPLY);
-
-      await this.happy.setMaxSupply(TOTAL_SUPPLY.add("1"));
-
-      expect(await this.happy.maxSupply()).to.equal(TOTAL_SUPPLY.add("1"));
-    });
-
-    it("none can set max supply when hardcapped", async function () {
-      expect(await this.happy.hardcapped()).to.equal(false);
-
-      await this.happy.hardcap();
-
-      expect(await this.happy.hardcapped()).to.equal(true);
-
-      expect(await this.happy.maxSupply()).to.equal(TOTAL_SUPPLY);
-
-      await expect(this.happy.setMaxSupply(TOTAL_SUPPLY.add("1")))
-        .to.be.revertedWith("Happy::setMaxSupply: token is hardcapped");
-
-      expect(await this.happy.maxSupply()).to.equal(TOTAL_SUPPLY);
-    });
-
-    it("none can set max supply below circulating supply", async function () {
-      expect(await this.happy.setMinter(this.admin.address))
-        .to.emit(this.happy, "NewMinter");
-
-      expect(await this.happy.minter()).to.equal(this.admin.address);
-
-      expect(await this.happy.mint(this.admin.address, TOTAL_SUPPLY))
-        .to.emit(this.happy, "Transfer");
-
-      expect(await this.happy.balanceOf(this.admin.address))
-        .to.equal(TOTAL_SUPPLY);
-      expect(await this.happy.totalSupply()).to.equal(TOTAL_SUPPLY);
-
-      await expect(this.happy.setMaxSupply(TOTAL_SUPPLY.sub("1")))
-        .to.be.revertedWith(
-          "Happy::setMaxSupply: max supply less than circulating supply"
-        );
-
-      expect(await this.happy.maxSupply()).to.equal(TOTAL_SUPPLY);
-    });
-
-  });
-
 
   //////////////////////////////
   //     setMinter

@@ -8,7 +8,7 @@ const chance = require("chance").Chance();
 const DENOMINATOR = BigNumber.from("10000");
 const ONE_DAY = BigNumber.from("86400");
 const HALF_SUPPLY = ONE_DAY.mul("200");
-const TOTAL_SUPPLY = ethers.utils.parseUnits("10000000", 18);
+const TOTAL_SUPPLY = ethers.utils.parseUnits("69666420130", 15);
 const ZERO_ADDRESS = ethers.constants.AddressZero;
 const PRECISION = ethers.utils.parseUnits("1", 30);
 
