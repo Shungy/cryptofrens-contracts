@@ -23,7 +23,6 @@ contract Happy is ERC20Burnable, Ownable {
     function mint(address account, uint amount) external {
         require(msg.sender == minter, "Happy::mint: unauthorized sender");
         _mint(account, amount);
-        require(cap >= totalSupply(), "Happy::mint: amount too high");
     }
 
     /// @dev Set TimelockController as the owner
@@ -45,10 +44,13 @@ contract Happy is ERC20Burnable, Ownable {
     }
 
     function _afterTokenTransfer(
-        address,
+        address from,
         address to,
         uint amount
     ) internal override {
+        if (from == address(0)) {
+            require(cap >= totalSupply(), "Happy::_mint: exceeds cap");
+        }
         if (to == address(0)) {
             burnedSupply += amount;
         }
