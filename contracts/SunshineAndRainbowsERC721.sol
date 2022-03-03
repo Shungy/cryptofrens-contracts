@@ -20,7 +20,6 @@ contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
     {
         uint amount = tokens.length;
         require(amount > 0, "SARS::stake: zero amount");
-        require(amount < 21, "SARS::stake: can stake 20 max");
         require(to != address(0), "SARS::stake: bad recipient");
 
         // if this is the first stake event, initialize

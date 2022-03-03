@@ -221,24 +221,6 @@ describe("SunshineAndRainbowsERC721.sol", function () {
       expect(await this.frens.balanceOf(this.sunshine.address)).to.equal("0");
     });
 
-    it("cannot stake above 20", async function () {
-      await this.frens.mint({ value: MINT_TWENTY_ONE.sub(MINT_ONE) });
-      await this.frens.mint({ value: MINT_ONE });
-      await this.frens.setApprovalForAll(this.sunshine.address, "1");
-
-      var arr = [];
-      for (let i = 1; i < 22; i++) {
-        arr.push(BigNumber.from(i));
-      }
-
-      await expect(
-        this.sunshine.stakeERC721(arr, this.admin.address)
-      ).to.be.revertedWith("SARS::stake: can stake 20 max");
-
-      expect(await this.sunshine.initTime()).to.equal("0");
-      expect(await this.frens.balanceOf(this.sunshine.address)).to.equal("0");
-    });
-
     it("cannot stake others token", async function () {
       await this.frens.mint({ value: MINT_ONE });
       await this.frens.setApprovalForAll(this.sunshine.address, "1");

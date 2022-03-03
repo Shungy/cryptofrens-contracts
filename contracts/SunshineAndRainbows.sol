@@ -273,10 +273,10 @@ contract SunshineAndRainbows is Pausable, Ownable {
             prevBalance;
     }
 
-    function _createPosition(address owner) internal returns (uint) {
+    function _createPosition(address to) internal returns (uint) {
         positionsLength++; // posIds start from 1
-        _userPositions[owner].add(positionsLength);
-        positions[positionsLength].owner = owner;
+        _userPositions[to].add(positionsLength);
+        positions[positionsLength].owner = to;
         _updatePosition(positionsLength);
         return positionsLength;
     }
