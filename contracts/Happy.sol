@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
 contract Happy is ERC20Burnable, Ownable {
     uint public burnedSupply;
-    uint public immutable cap = 69_666_420.13e18; //69.7M HAPPY
+    uint public constant cap = 69_666_420.13e18; //69.7M HAPPY
 
     // non-standard metadata
     string public externalURI = "https://cryptofrens.xyz/happy";
