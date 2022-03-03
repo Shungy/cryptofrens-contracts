@@ -1,6 +1,7 @@
 require("@nomiclabs/hardhat-waffle");
 require('solidity-coverage');
 require('hardhat-contract-sizer');
+require("hardhat-gas-reporter");
 require('dotenv').config();
 
 // This is a sample Hardhat task. To learn how to create your own go to
@@ -57,5 +58,8 @@ module.exports = {
         version: "0.5.16"
       }
     ]
+  },
+  gasReporter: {
+    enabled: (process.env.REPORT_GAS) ? true : false
   }
 };

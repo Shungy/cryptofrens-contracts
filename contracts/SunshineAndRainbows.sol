@@ -148,10 +148,8 @@ contract SunshineAndRainbows is Pausable, Ownable {
         _stake(posId, amount, msg.sender);
     }
 
-    function massExit(uint[] memory posIds) external virtual {
-        uint length = posIds.length;
-        require(length < 21, "SARS::massExit: too many positions");
-        for (uint i; i < length; ++i) {
+    function massExit(uint[] calldata posIds) external virtual {
+        for (uint i; i < posIds.length; ++i) {
             uint posId = posIds[i];
             withdraw(positions[posId].balance, posId);
         }
@@ -173,18 +171,6 @@ contract SunshineAndRainbows is Pausable, Ownable {
         returns (uint[] memory)
     {
         return _userPositions[account].values();
-    }
-
-    function userPositionsLength(address account) external view returns (uint) {
-        return _userPositions[account].length();
-    }
-
-    function userPositionAt(address account, uint index)
-        external
-        view
-        returns (uint)
-    {
-        return _userPositions[account].at(index);
     }
 
     /// @notice Withdraws `amount` tokens from `posId`

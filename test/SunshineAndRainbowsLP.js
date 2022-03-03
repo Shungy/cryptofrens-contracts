@@ -131,7 +131,6 @@ describe("SunshineAndRainbowsLP.sol", function () {
       var initTime = (await ethers.provider.getBlock(blockNumber)).timestamp;
 
       expect(await this.sunshine.totalSupply()).to.equal(this.initBalance);
-      expect(await this.sunshine.positionsLength()).to.equal("1");
       expect(await this.sunshine.initTime()).to.equal(initTime);
       expect(await this.pair.balanceOf(this.sunshine.address)).to.equal(this.initBalance);
 

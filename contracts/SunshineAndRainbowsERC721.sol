@@ -14,7 +14,7 @@ contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
         SunshineAndRainbows(_stakingToken, _rewardRegulator)
     {}
 
-    function stakeERC721(uint[] memory tokens, address to)
+    function stakeERC721(uint[] calldata tokens, address to)
         external
         whenNotPaused
     {
@@ -47,7 +47,16 @@ contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
         _updateSumOfEntryTimes(0, 0, amount);
     }
 
-    function withdrawERC721(uint[] memory tokens, uint posId) external {
+    function massExit(uint[] calldata posIds) external override {
+        for (uint i; i < posIds.length; ++i) {
+            uint posId = posIds[i];
+            withdrawERC721(tokensOf(posIds[i]), posIds[i]);
+        }
+    }
+
+    function stake(uint, address) external pure override {}
+
+    function withdrawERC721(uint[] memory tokens, uint posId) public {
         Position memory position = positions[posId];
         uint amount = tokens.length;
         address sender = msg.sender;
@@ -87,19 +96,9 @@ contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
         _harvest(posId, sender);
     }
 
-    function tokensOf(uint posId) external view returns (uint[] memory) {
+    function tokensOf(uint posId) public view returns (uint[] memory) {
         return _tokensOf[posId].values();
     }
 
-    function stake(uint, address) external pure override {
-        revert();
-    }
-
-    function massExit(uint[] memory) external pure override {
-        revert();
-    }
-
-    function withdraw(uint, uint) public pure override {
-        revert();
-    }
+    function withdraw(uint, uint) public pure override {}
 }

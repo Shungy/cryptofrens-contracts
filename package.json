@@ -10,6 +10,7 @@
     "test": "export LANG=C && npx hardhat test",
     "lint": "solhint 'contracts/*.sol'",
     "size": "export LANG=C && npx hardhat size-contracts",
+    "gas": "export LANG=C && export REPORT_GAS=true && npx hardhat test",
     "coverage": "export LANG=C && npx hardhat coverage",
     "graph": "surya graph contracts/*.sol | dot -Tpng > documents/architecture.png"
   },
@@ -25,6 +26,7 @@
     "ethers": "^5.5.1",
     "hardhat": "^2.7.0",
     "hardhat-contract-sizer": "^2.4.0",
+    "hardhat-gas-reporter": "^1.0.8",
     "prettier-plugin-solidity": "^1.0.0-beta.19",
     "solidity-coverage": "^0.7.20"
   },

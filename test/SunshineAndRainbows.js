@@ -83,14 +83,6 @@ describe("SunshineAndRainbows.sol", function () {
       expect(await this.sunshine.totalSupply()).to.equal("0");
     });
 
-    it("default: positionsLength", async function () {
-      expect(await this.sunshine.positionsLength()).to.equal("0");
-    });
-
-    it("default: positionsLength", async function () {
-      expect(await this.sunshine.positionsLength()).to.equal("0");
-    });
-
     it("default: initTime", async function () {
       expect(await this.sunshine.initTime()).to.equal("0");
     });
@@ -112,7 +104,6 @@ describe("SunshineAndRainbows.sol", function () {
       var initTime = (await ethers.provider.getBlock(blockNumber)).timestamp;
 
       expect(await this.sunshine.totalSupply()).to.equal("1");
-      expect(await this.sunshine.positionsLength()).to.equal("1");
       expect(await this.sunshine.initTime()).to.equal(initTime);
       expect(await this.pgl.balanceOf(this.sunshine.address)).to.equal("1");
 
@@ -128,9 +119,6 @@ describe("SunshineAndRainbows.sol", function () {
       expect(
         await this.sunshine.userPositionsLength(this.admin.address)
       ).to.equal("1");
-      expect(
-        await this.sunshine.userPositionAt(this.admin.address, "0")
-      ).to.equal("1");
     });
 
     it("stakes one for a stranger", async function () {
@@ -145,7 +133,6 @@ describe("SunshineAndRainbows.sol", function () {
       var initTime = (await ethers.provider.getBlock(blockNumber)).timestamp;
 
       expect(await this.sunshine.totalSupply()).to.equal("1");
-      expect(await this.sunshine.positionsLength()).to.equal("1");
       expect(await this.sunshine.initTime()).to.equal(initTime);
       expect(await this.pgl.balanceOf(this.sunshine.address)).to.equal("1");
 
@@ -160,9 +147,6 @@ describe("SunshineAndRainbows.sol", function () {
 
       expect(
         await this.sunshine.userPositionsLength(this.unauthorized.address)
-      ).to.equal("1");
-      expect(
-        await this.sunshine.userPositionAt(this.unauthorized.address, "0")
       ).to.equal("1");
     });
 
@@ -213,7 +197,6 @@ describe("SunshineAndRainbows.sol", function () {
       var secondStake = (await ethers.provider.getBlock(blockNumber)).timestamp;
 
       expect(await this.sunshine.totalSupply()).to.equal("2");
-      expect(await this.sunshine.positionsLength()).to.equal("2");
       expect(await this.sunshine.initTime()).to.equal(initTime);
       expect(await this.pgl.balanceOf(this.sunshine.address)).to.equal("2");
 
@@ -239,9 +222,6 @@ describe("SunshineAndRainbows.sol", function () {
 
       expect(
         await this.sunshine.userPositionsLength(this.admin.address)
-      ).to.equal("2");
-      expect(
-        await this.sunshine.userPositionAt(this.admin.address, "1")
       ).to.equal("2");
     });
   });
@@ -273,7 +253,6 @@ describe("SunshineAndRainbows.sol", function () {
       var secondStake = (await ethers.provider.getBlock(blockNumber)).timestamp;
 
       expect(await this.sunshine.totalSupply()).to.equal("0");
-      expect(await this.sunshine.positionsLength()).to.equal("1");
       expect(await this.pgl.balanceOf(this.sunshine.address)).to.equal("0");
       expect(await this.pgl.balanceOf(this.admin.address)).to.equal(
         TOTAL_SUPPLY
@@ -417,7 +396,6 @@ describe("SunshineAndRainbows.sol", function () {
       var rewards = getRewards(secondStake - this.minterInit);
 
       expect(await this.sunshine.totalSupply()).to.equal("1");
-      expect(await this.sunshine.positionsLength()).to.equal("1");
       expect(await this.pgl.balanceOf(this.sunshine.address)).to.equal("1");
       expect(await this.pgl.balanceOf(this.admin.address)).to.equal(
         TOTAL_SUPPLY.sub("1")
@@ -444,9 +422,6 @@ describe("SunshineAndRainbows.sol", function () {
 
       expect(
         await this.sunshine.userPositionsLength(this.admin.address)
-      ).to.equal("1");
-      expect(
-        await this.sunshine.userPositionAt(this.admin.address, "0")
       ).to.equal("1");
     });
     it("cannot harvest from others’ position", async function () {
@@ -507,7 +482,6 @@ describe("SunshineAndRainbows.sol", function () {
       var withdraw = (await ethers.provider.getBlock(blockNumber)).timestamp;
 
       expect(await this.sunshine.totalSupply()).to.equal("0");
-      expect(await this.sunshine.positionsLength()).to.equal("1");
       expect(await this.pgl.balanceOf(this.sunshine.address)).to.equal("0");
       expect(await this.pgl.balanceOf(this.admin.address)).to.equal(
         TOTAL_SUPPLY
@@ -584,11 +558,11 @@ describe("SunshineAndRainbows.sol", function () {
         "Withdraw"
       );
     });
-    it("cannot exit more than 20 positions", async function () {
+    it("exits 10 positions", async function () {
       await this.pgl.approve(this.sunshine.address, TOTAL_SUPPLY);
 
       var arr = [];
-      for (var i = 1; i < 22; i++) {
+      for (var i = 1; i < 11; i++) {
         expect(await this.sunshine.stake("1", this.admin.address)).to.emit(
           this.sunshine,
           "Stake"
@@ -596,8 +570,9 @@ describe("SunshineAndRainbows.sol", function () {
         arr[i - 1] = i;
       }
 
-      await expect(this.sunshine.massExit(arr)).to.be.revertedWith(
-        "SARS::massExit: too many positions"
+      expect(await this.sunshine.massExit(arr)).to.emit(
+        this.sunshine,
+        "Withdraw"
       );
     });
   });

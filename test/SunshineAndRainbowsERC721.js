@@ -91,10 +91,6 @@ describe("SunshineAndRainbowsERC721.sol", function () {
       expect(await this.sunshine.totalSupply()).to.equal("0");
     });
 
-    it("default: positionsLength", async function () {
-      expect(await this.sunshine.positionsLength()).to.equal("0");
-    });
-
     it("default: initTime", async function () {
       expect(await this.sunshine.initTime()).to.equal("0");
     });
@@ -274,7 +270,6 @@ describe("SunshineAndRainbowsERC721.sol", function () {
       var secondStake = (await ethers.provider.getBlock(blockNumber)).timestamp;
 
       expect(await this.sunshine.totalSupply()).to.equal("2");
-      expect(await this.sunshine.positionsLength()).to.equal("2");
       expect(await this.sunshine.initTime()).to.equal(initTime);
       expect(await this.frens.balanceOf(this.sunshine.address)).to.equal("2");
 
@@ -342,7 +337,6 @@ describe("SunshineAndRainbowsERC721.sol", function () {
       var secondStake = (await ethers.provider.getBlock(blockNumber)).timestamp;
 
       expect(await this.sunshine.totalSupply()).to.equal("0");
-      expect(await this.sunshine.positionsLength()).to.equal("1");
       expect(await this.frens.balanceOf(this.sunshine.address)).to.equal("0");
       expect(await this.frens.balanceOf(this.admin.address)).to.equal("1");
 
@@ -391,7 +385,6 @@ describe("SunshineAndRainbowsERC721.sol", function () {
       var secondStake = (await ethers.provider.getBlock(blockNumber)).timestamp;
 
       expect(await this.sunshine.totalSupply()).to.equal("1");
-      expect(await this.sunshine.positionsLength()).to.equal("1");
       expect(await this.frens.balanceOf(this.sunshine.address)).to.equal("1");
       expect(await this.frens.balanceOf(this.admin.address)).to.equal("1");
 
