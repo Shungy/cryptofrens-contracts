@@ -92,6 +92,10 @@ contract SunshineAndRainbows is Pausable, Ownable {
     event Withdraw(uint position, uint amount);
 
     constructor(address _stakingToken, address _rewardRegulator) {
+        require(
+            _stakingToken != address(0) && _rewardRegulator != address(0),
+            "SARS::Constructor: zero address"
+        );
         stakingToken = _stakingToken;
         rewardRegulator = IRewardRegulator(_rewardRegulator);
     }
@@ -114,13 +118,13 @@ contract SunshineAndRainbows is Pausable, Ownable {
         _updateRewardVariables();
         _updatePosition(posId);
 
-        require(_harvest(posId, sender) != 0, "SARS::harvest: no reward");
-
         _updateSumOfEntryTimes(
             position.lastUpdate,
             position.balance,
             position.balance
         );
+
+        require(_harvest(posId, sender) != 0, "SARS::harvest: no reward");
     }
 
     /// @notice Creates a new position and stakes `amount` tokens to it
@@ -139,9 +143,9 @@ contract SunshineAndRainbows is Pausable, Ownable {
 
         uint posId = _createPosition(to);
 
-        _stake(posId, amount, msg.sender);
-
         _updateSumOfEntryTimes(0, 0, amount);
+
+        _stake(posId, amount, msg.sender);
     }
 
     function massExit(uint[] memory posIds) external virtual {
@@ -154,7 +158,7 @@ contract SunshineAndRainbows is Pausable, Ownable {
     }
 
     function pendingRewards(uint posId) external view returns (int) {
-        if (!(_lastUpdate == block.timestamp || totalSupply == 0)) {
+        if (_lastUpdate != block.timestamp && totalSupply != 0) {
             return earned(posId, _idealPosition, _rewardsPerStakingDuration);
         }
         (uint x, uint y) = rewardVariables(
@@ -207,8 +211,6 @@ contract SunshineAndRainbows is Pausable, Ownable {
             positions[posId].balance = position.balance - amount;
         }
         totalSupply -= amount;
-        IERC20(stakingToken).safeTransfer(sender, amount);
-        emit Withdraw(posId, amount);
 
         _updateSumOfEntryTimes(
             position.lastUpdate,
@@ -217,6 +219,9 @@ contract SunshineAndRainbows is Pausable, Ownable {
         );
 
         _harvest(posId, sender);
+
+        IERC20(stakingToken).safeTransfer(sender, amount);
+        emit Withdraw(posId, amount);
     }
 
     function _harvest(uint posId, address to) internal returns (uint) {
@@ -247,7 +252,7 @@ contract SunshineAndRainbows is Pausable, Ownable {
     }
 
     function _updateRewardVariables() internal {
-        if (!(_lastUpdate == block.timestamp || totalSupply == 0)) {
+        if (_lastUpdate != block.timestamp && totalSupply != 0) {
             _lastUpdate = block.timestamp;
             (_idealPosition, _rewardsPerStakingDuration) = rewardVariables(
                 rewardRegulator.setRewards()
