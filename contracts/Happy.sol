@@ -7,15 +7,13 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
 contract Happy is ERC20Burnable, Ownable {
     uint public burnedSupply;
-    uint public maxSupply = 10_000_000e18; // 10M HAPPY
+    uint public immutable cap = 69_666_420.13e18; //69.7M HAPPY
 
     // non-standard metadata
     string public externalURI = "https://cryptofrens.xyz/happy";
     string public logoURI = "https://cryptofrens.xyz/happy/logo.png";
 
     address public minter;
-
-    bool public hardcapped;
 
     event NewMinter(address newMinter);
 
@@ -25,7 +23,7 @@ contract Happy is ERC20Burnable, Ownable {
     function mint(address account, uint amount) external {
         require(msg.sender == minter, "Happy::mint: unauthorized sender");
         _mint(account, amount);
-        require(maxSupply >= totalSupply(), "Happy::mint: amount too high");
+        require(cap >= totalSupply(), "Happy::mint: amount too high");
     }
 
     /// @dev Set TimelockController as the owner
@@ -42,21 +40,8 @@ contract Happy is ERC20Burnable, Ownable {
         externalURI = newExternalURI;
     }
 
-    function setMaxSupply(uint newMaxSupply) external onlyOwner {
-        require(!hardcapped, "Happy::setMaxSupply: token is hardcapped");
-        require(
-            newMaxSupply >= totalSupply(),
-            "Happy::setMaxSupply: max supply less than circulating supply"
-        );
-        maxSupply = newMaxSupply;
-    }
-
-    function hardcap() external onlyOwner {
-        hardcapped = true;
-    }
-
     function mintableTotal() external view returns (uint) {
-        return maxSupply + burnedSupply;
+        return cap + burnedSupply;
     }
 
     function _afterTokenTransfer(
