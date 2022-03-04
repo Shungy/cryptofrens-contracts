@@ -15,7 +15,7 @@
     "graph": "surya graph contracts/*.sol | dot -Tpng > documents/architecture.png"
   },
   "author": "Shung",
-  "license": "GPLv3",
+  "license": "UNLICENSED",
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
