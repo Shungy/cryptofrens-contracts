@@ -1,11 +1,11 @@
 const { ethers } = require("hardhat");
-const { createHash } = require('crypto');
+const { createHash } = require("crypto");
 
 const ADMIN = "0x522d973cb5D4437BF5c5BCcBc40F3213d731E7C4";
-const HASH = "541dd0e9a0b139695a2311006e27b1b4dcfb0cfd5faffbe1cd27c1d63b9dbda6"
+const HASH = "541dd0e9a0b139695a2311006e27b1b4dcfb0cfd5faffbe1cd27c1d63b9dbda6";
 
 // tinfoil check to make sure admin wasn't changed by mistake
-if (createHash('sha256').update(ADMIN).digest('hex') != HASH) {
+if (createHash("sha256").update(ADMIN).digest("hex") != HASH) {
   console.log("Admin address or hash was changed!");
   process.exit(0);
 }
@@ -63,10 +63,7 @@ async function main() {
   }
 
   //deploy timelock with 13 days delay
-  const timelock = await Timelock.deploy(
-    ADMIN,
-    86400 * 13
-  );
+  const timelock = await Timelock.deploy(ADMIN, 86400 * 13);
   await timelock.deployed();
   console.log('TIMELOCK = "' + timelock.address + '"');
 
