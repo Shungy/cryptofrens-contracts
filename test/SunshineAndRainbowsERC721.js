@@ -223,7 +223,7 @@ describe("SunshineAndRainbowsERC721.sol", function () {
 
       await expect(
         this.sunshine.stakeERC721(["1"], ZERO_ADDRESS)
-      ).to.be.revertedWith("SARS::stake: bad recipient");
+      ).to.be.revertedWith("SARS::_createPosition: bad recipient");
 
       expect(await this.sunshine.initTime()).to.equal("0");
       expect(await this.frens.balanceOf(this.sunshine.address)).to.equal("0");
@@ -328,7 +328,7 @@ describe("SunshineAndRainbowsERC721.sol", function () {
         interval
       );
 
-      expect(await this.happy.balanceOf(this.admin.address)).to.equal(rewards);
+      expect(await this.happy.balanceOf(this.admin.address)).to.equal("0");
       expect(position.balance).to.equal("0");
       expect(position.lastUpdate).to.equal(secondStake);
       expect(position.rewardsPerStakingDuration).to.equal(
@@ -377,7 +377,7 @@ describe("SunshineAndRainbowsERC721.sol", function () {
         interval
       );
 
-      expect(await this.happy.balanceOf(this.admin.address)).to.equal(rewards);
+      expect(await this.happy.balanceOf(this.admin.address)).to.equal("0");
       expect(position.balance).to.equal("1");
       expect(position.lastUpdate).to.equal(secondStake);
       expect(position.rewardsPerStakingDuration).to.equal(

@@ -155,7 +155,7 @@ describe("SunshineAndRainbows.sol", function () {
 
       await expect(
         this.sunshine.stake("0", this.admin.address)
-      ).to.be.revertedWith("SARS::stake: zero amount");
+      ).to.be.revertedWith("SARS::_stake: zero amount");
 
       expect(await this.sunshine.initTime()).to.equal("0");
       expect(await this.pgl.balanceOf(this.sunshine.address)).to.equal("0");
@@ -165,7 +165,7 @@ describe("SunshineAndRainbows.sol", function () {
       await this.pgl.approve(this.sunshine.address, TOTAL_SUPPLY);
 
       await expect(this.sunshine.stake("1", ZERO_ADDRESS)).to.be.revertedWith(
-        "SARS::stake: bad recipient"
+        "SARS::_createPosition: bad recipient"
       );
 
       expect(await this.sunshine.initTime()).to.equal("0");
@@ -242,6 +242,8 @@ describe("SunshineAndRainbows.sol", function () {
       expect(await this.sunshine.initTime()).to.equal(initTime);
       expect(await this.pgl.balanceOf(this.sunshine.address)).to.equal("1");
 
+      var position = await this.sunshine.positions("1");
+
       expect(await this.sunshine.withdraw("1", "1")).to.emit(
         this.sunshine,
         "Withdraw"
@@ -267,7 +269,7 @@ describe("SunshineAndRainbows.sol", function () {
         interval
       );
 
-      expect(position.reward).to.equal("0");
+      expect(position.reward).to.equal(rewards);
       expect(position.balance).to.equal("0");
       expect(position.lastUpdate).to.equal(secondStake);
       expect(position.rewardsPerStakingDuration).to.equal(
@@ -434,7 +436,7 @@ describe("SunshineAndRainbows.sol", function () {
       sunshine = await this.sunshine.connect(this.unauthorized);
 
       await expect(sunshine.harvest("1")).to.be.revertedWith(
-        "SARS::harvest: unauthorized"
+        "SARS::_harvest: unauthorized"
       );
 
       expect(await this.happy.balanceOf(this.admin.address)).to.equal("0");
@@ -491,7 +493,7 @@ describe("SunshineAndRainbows.sol", function () {
         interval
       );
 
-      expect(position.reward).to.equal("0");
+      expect(position.reward).to.equal(rewards);
       expect(position.balance).to.equal("0");
       expect(position.lastUpdate).to.equal(withdraw);
       expect(position.rewardsPerStakingDuration).to.equal(
@@ -500,20 +502,14 @@ describe("SunshineAndRainbows.sol", function () {
       expect(position.idealPosition).to.equal(idealPosition);
       expect(position.owner).to.equal(this.admin.address);
 
+      expect(await this.sunshine.harvest("1")).to.emit(
+        this.sunshine,
+        "Harvest"
+      );
+
       await expect(this.sunshine.harvest("1"))
         .to.be.revertedWith("SARS::harvest: no reward");
 
-      expect(await this.happy.balanceOf(this.admin.address)).to.equal(rewards);
-      expect(await this.happy.totalSupply()).to.equal(rewards);
-
-      var position = await this.sunshine.positions("1");
-      expect(position.reward).to.equal("0");
-      expect(position.balance).to.equal("0");
-      expect(position.lastUpdate).to.equal(withdraw);
-      expect(position.rewardsPerStakingDuration).to.equal(
-        rewardsPerStakingDuration
-      );
-      expect(position.idealPosition).to.equal(idealPosition);
     });
   });
 

@@ -18,19 +18,42 @@ contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
         external
         whenNotPaused
     {
+        _updateRewardVariables();
+        _stakeERC721(_createPosition(to), tokens);
+    }
+
+    function withdrawERC721(uint[] memory tokens, uint posId) external {
+        _updateRewardVariables();
+        _withdrawERC721(tokens, posId);
+    }
+
+    function massExit(uint[] calldata posIds) external override {
+        _updateRewardVariables();
+        for (uint i; i < posIds.length; ++i) {
+            uint posId = posIds[i];
+            _withdrawERC721(tokensOf(posId), posId);
+            _harvest(posId, msg.sender);
+        }
+    }
+
+    function stake(uint, address) external pure override {}
+    function withdraw(uint, uint) external pure override {}
+
+    function tokensOf(uint posId) public view returns (uint[] memory) {
+        return _tokensOf[posId].values();
+    }
+
+    function _stake(uint, uint, address) internal pure override {}
+    function _withdraw(uint, uint) internal pure override {}
+
+    function _stakeERC721(uint posId, uint[] memory tokens) private updatePosition(posId) {
         uint amount = tokens.length;
         require(amount > 0, "SARS::stake: zero amount");
-        require(to != address(0), "SARS::stake: bad recipient");
-
-        // if this is the first stake event, initialize
         if (initTime == 0) {
             initTime = block.timestamp;
-        } else {
-            _updateRewardVariables();
         }
-
-        uint posId = _createPosition(to);
-
+        positions[posId].balance = amount;
+        totalSupply += amount;
         for (uint i; i < amount; ++i) {
             uint tokenId = tokens[i];
             _tokensOf[posId].add(tokenId);
@@ -40,33 +63,15 @@ contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
                 tokenId
             );
         }
-        positions[posId].balance = amount;
-        totalSupply += amount;
         emit Stake(posId, amount);
-
-        _updateSumOfEntryTimes(0, 0, amount);
     }
 
-    function massExit(uint[] calldata posIds) external override {
-        for (uint i; i < posIds.length; ++i) {
-            uint posId = posIds[i];
-            withdrawERC721(tokensOf(posId), posId);
-        }
-    }
-
-    function stake(uint, address) external pure override {}
-
-    function withdrawERC721(uint[] memory tokens, uint posId) public {
+    function _withdrawERC721(uint[] memory tokens, uint posId) private updatePosition(posId) {
         Position memory position = positions[posId];
         uint amount = tokens.length;
         address sender = msg.sender;
-
         require(amount > 0, "SARS::withdraw: zero amount");
         require(position.owner == sender, "SARS::withdraw: unauthorized");
-
-        _updateRewardVariables();
-        _updatePosition(posId);
-
         if (position.balance == amount) {
             positions[posId].balance = 0;
             _userPositions[sender].remove(posId);
@@ -75,7 +80,7 @@ contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
         } else {
             positions[posId].balance = position.balance - amount;
         }
-
+        totalSupply -= amount;
         for (uint i; i < amount; ++i) {
             uint tokenId = tokens[i];
             require(
@@ -84,21 +89,6 @@ contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
             );
             IERC721(stakingToken).transferFrom(address(this), sender, tokenId);
         }
-        totalSupply -= amount;
         emit Withdraw(posId, amount);
-
-        _updateSumOfEntryTimes(
-            position.lastUpdate,
-            position.balance,
-            positions[posId].balance
-        );
-
-        _harvest(posId, sender);
     }
-
-    function tokensOf(uint posId) public view returns (uint[] memory) {
-        return _tokensOf[posId].values();
-    }
-
-    function withdraw(uint, uint) public pure override {}
 }

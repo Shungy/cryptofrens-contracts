@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Capped.sol";
 
-/// @author shung from https://cryptofrens.xyz/
+/// @author shung for https://cryptofrens.xyz/
 contract Happy is ERC20Burnable, ERC20Capped, Ownable {
     uint public burnedSupply;
 
@@ -49,8 +49,8 @@ contract Happy is ERC20Burnable, ERC20Capped, Ownable {
         super._mint(to, amount);
     }
 
-    function _burn(address account, uint amount) internal override {
-        super._burn(account, amount);
+    function _burn(address from, uint amount) internal override {
+        super._burn(from, amount);
         burnedSupply += amount;
     }
 }

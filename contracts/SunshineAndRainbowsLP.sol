@@ -33,50 +33,51 @@ contract SunshineAndRainbowsLP is SunshineAndRainbows {
 
     /// @dev special harvest method that does not reset APR
     function compound(uint posId, address to) external virtual whenNotPaused {
-        Position memory position = positions[posId];
-        require(position.owner == msg.sender, "SARS::compound: unauthorized");
-        require(to != address(0), "SARS::compound: invalid to address");
-
-        // harvest //
-        /////////////
         _updateRewardVariables();
-        positions[posId].reward = earned(
-            posId,
-            _idealPosition,
-            _rewardsPerStakingDuration
-        );
-        uint reward = _harvest(posId, address(this));
-        require(reward != 0, "SARS::compound: no reward");
 
-        // subtract rewards cuz we wont update the position
-        // this allows resetting apr without accruing un-earned rewards
-        positions[posId].reward -= int(reward);
+        // add liquidity
+        uint amount = _addLiquidity(_lockedHarvest(posId, address(this)));
 
-        // add liquidity //
-        ///////////////////
-        uint amount = _addLiquidity(reward);
-
-        // Stake //
-        ///////////
-        require(amount > 0, "SARS::compound: zero amount");
+        // Stake
         uint childPosId = _createPosition(to);
         _stake(childPosId, amount, address(this));
-        _updateSumOfEntryTimes(0, 0, amount);
 
+        // record parent-child relation
         parents[childPosId] = posId;
         creationTimes[childPosId] = block.timestamp;
     }
 
-    function _withdrawCheck(uint posId) internal view override {
+    function _withdraw(uint amount, uint posId) internal override {
+        // do not allow withdrawal if parent position was not
+        // reset at least once after creation of child position
         if (parents[posId] != 0) {
             require(
                 creationTimes[posId] < positions[parents[posId]].lastUpdate,
-                "SARS::_withdrawCheck: parent position not updated"
+                "SARS::_withdraw: parent position not updated"
             );
         }
+        super._withdraw(amount, posId);
+    }
+
+    function _lockedHarvest(uint posId, address to) private returns (uint) {
+        Position storage position = positions[posId];
+        require(position.owner == msg.sender, "SARS::_harvest: unauthorized");
+        int reward = _earned(
+            posId,
+            _idealPosition,
+            _rewardsPerStakingDuration
+        );
+        assert(reward >= 0);
+        if (reward != 0) {
+            positions[posId].reward = -reward;
+            rewardRegulator.mint(to, uint(reward));
+            emit Harvest(posId, uint(reward));
+        }
+        return uint(reward);
     }
 
     function _addLiquidity(uint reward) private returns (uint) {
+        require(reward != 0, "SARS::_addLiquidity: no reward");
         (uint reserve0, uint reserve1, ) = pair.getReserves();
         require(
             reserve0 > 1000 && reserve1 > 1000,
