@@ -127,7 +127,7 @@ describe("Happy.sol", function () {
       expect(await this.happy.minter()).to.equal(this.admin.address);
 
       await expect(this.happy.mint(this.admin.address, TOTAL_SUPPLY.add("1")))
-        .to.be.revertedWith("Happy::_mint: exceeds cap");
+        .to.be.revertedWith("ERC20Capped: cap exceeded");
 
       expect(await this.happy.balanceOf(this.admin.address)).to.equal("0");
       expect(await this.happy.totalSupply()).to.equal("0");

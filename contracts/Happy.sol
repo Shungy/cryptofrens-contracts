@@ -4,10 +4,10 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Capped.sol";
 
-contract Happy is ERC20Burnable, Ownable {
+contract Happy is ERC20Burnable, ERC20Capped, Ownable {
     uint public burnedSupply;
-    uint public constant cap = 69_666_420.13e18; //69.7M HAPPY
 
     // non-standard metadata
     string public externalURI = "https://cryptofrens.xyz/happy";
@@ -18,14 +18,13 @@ contract Happy is ERC20Burnable, Ownable {
     event NewMinter(address newMinter);
 
     // solhint-disable-next-line no-empty-blocks
-    constructor() ERC20("Happiness", "HAPPY") {}
+    constructor() ERC20("Happiness", "HAPPY") ERC20Capped(69_666_420.13e18) {}
 
     function mint(address account, uint amount) external {
         require(msg.sender == minter, "Happy::mint: unauthorized sender");
         _mint(account, amount);
     }
 
-    /// @dev Set TimelockController as the owner
     function setMinter(address newMinter) external onlyOwner {
         minter = newMinter;
         emit NewMinter(minter);
@@ -40,19 +39,18 @@ contract Happy is ERC20Burnable, Ownable {
     }
 
     function mintableTotal() external view returns (uint) {
-        return cap + burnedSupply;
+        return cap() + burnedSupply;
     }
 
-    function _afterTokenTransfer(
-        address from,
-        address to,
-        uint amount
-    ) internal override {
-        if (from == address(0)) {
-            require(cap >= totalSupply(), "Happy::_mint: exceeds cap");
-        }
-        if (to == address(0)) {
-            burnedSupply += amount;
-        }
+    function _mint(address to, uint amount)
+        internal
+        override(ERC20, ERC20Capped)
+    {
+        super._mint(to, amount);
+    }
+
+    function _burn(address account, uint amount) internal override {
+        super._burn(account, amount);
+        burnedSupply += amount;
     }
 }
