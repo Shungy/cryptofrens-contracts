@@ -37,16 +37,25 @@ contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
     }
 
     function stake(uint, address) external pure override {}
+
     function withdraw(uint, uint) external pure override {}
 
     function tokensOf(uint posId) public view returns (uint[] memory) {
         return _tokensOf[posId].values();
     }
 
-    function _stake(uint, uint, address) internal pure override {}
+    function _stake(
+        uint,
+        uint,
+        address
+    ) internal pure override {}
+
     function _withdraw(uint, uint) internal pure override {}
 
-    function _stakeERC721(uint posId, uint[] memory tokens) private updatePosition(posId) {
+    function _stakeERC721(uint posId, uint[] memory tokens)
+        private
+        updatePosition(posId)
+    {
         uint amount = tokens.length;
         require(amount > 0, "SARS::stake: zero amount");
         if (initTime == 0) {
@@ -66,7 +75,10 @@ contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
         emit Stake(posId, amount);
     }
 
-    function _withdrawERC721(uint[] memory tokens, uint posId) private updatePosition(posId) {
+    function _withdrawERC721(uint[] memory tokens, uint posId)
+        private
+        updatePosition(posId)
+    {
         Position memory position = positions[posId];
         uint amount = tokens.length;
         address sender = msg.sender;

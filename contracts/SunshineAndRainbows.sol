@@ -171,7 +171,11 @@ contract SunshineAndRainbows is Pausable, Claimable {
         return _userPositions[account].values();
     }
 
-    function _withdraw(uint amount, uint posId) internal virtual updatePosition(posId) {
+    function _withdraw(uint amount, uint posId)
+        internal
+        virtual
+        updatePosition(posId)
+    {
         Position memory position = positions[posId];
         address sender = msg.sender;
         require(amount != 0, "SARS::withdraw: zero amount");
@@ -210,7 +214,11 @@ contract SunshineAndRainbows is Pausable, Claimable {
         emit Stake(posId, amount);
     }
 
-    function _harvest(uint posId, address to) internal updatePosition(posId) returns (uint) {
+    function _harvest(uint posId, address to)
+        internal
+        updatePosition(posId)
+        returns (uint)
+    {
         Position memory position = positions[posId];
         require(position.owner == msg.sender, "SARS::_harvest: unauthorized");
         uint reward = uint(position.reward);

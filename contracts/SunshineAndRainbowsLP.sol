@@ -62,11 +62,7 @@ contract SunshineAndRainbowsLP is SunshineAndRainbows {
     function _lockedHarvest(uint posId, address to) private returns (uint) {
         Position storage position = positions[posId];
         require(position.owner == msg.sender, "SARS::_harvest: unauthorized");
-        int reward = _earned(
-            posId,
-            _idealPosition,
-            _rewardsPerStakingDuration
-        );
+        int reward = _earned(posId, _idealPosition, _rewardsPerStakingDuration);
         assert(reward >= 0);
         if (reward != 0) {
             positions[posId].reward = -reward;
