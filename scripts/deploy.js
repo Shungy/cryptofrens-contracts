@@ -117,6 +117,9 @@ async function main() {
   );
   await regulator.transferOwnership(ADMIN);
   console.log('OWNER = "' + ADMIN + '"');
+  console.log("=================================================");
+  console.log("DON’T FORGET TO CLAIM OWNERSHIP OF THE CONTRACTS!");
+  console.log("=================================================");
 }
 
 main()

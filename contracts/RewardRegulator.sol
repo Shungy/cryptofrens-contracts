@@ -2,7 +2,7 @@
 // solhint-disable not-rely-on-time
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "./Claimable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
@@ -25,7 +25,7 @@ interface IHappy {
  * mints directly from the token contract.
  * @author shung for Pangolin & cryptofrens.xyz
  */
-contract RewardRegulator is Ownable, Pausable {
+contract RewardRegulator is Claimable, Pausable {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /// @notice The information stored for an account (i.e. minter contract)

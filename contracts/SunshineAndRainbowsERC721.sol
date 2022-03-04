@@ -50,7 +50,7 @@ contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
     function massExit(uint[] calldata posIds) external override {
         for (uint i; i < posIds.length; ++i) {
             uint posId = posIds[i];
-            withdrawERC721(tokensOf(posIds[i]), posIds[i]);
+            withdrawERC721(tokensOf(posId), posId);
         }
     }
 
