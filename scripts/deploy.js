@@ -94,8 +94,7 @@ async function main() {
   await sunshineLP.deployed();
   console.log('SUNSHINE_LP = "' + sunshineLP.address + '"');
 
-  // pause sunshineLP and transfer ownership
-  await sunshineLP.pause();
+  // transfer ownership
   await sunshineLP.transferOwnership(ADMIN);
 
   // deploy erc721 staking contract
@@ -107,7 +106,6 @@ async function main() {
   console.log('SUNSHINE_ERC721 = "' + sunshineERC721.address + '"');
 
   // pause sunshineERC721 and transfer ownership
-  await sunshineERC721.pause();
   await sunshineERC721.transferOwnership(ADMIN);
 
   // set beneficiaries of reward regulator. 90% LP, 10% NFT staking
@@ -117,9 +115,9 @@ async function main() {
   );
   await regulator.transferOwnership(ADMIN);
   console.log('OWNER = "' + ADMIN + '"');
-  console.log("=================================================");
-  console.log("DON’T FORGET TO CLAIM OWNERSHIP OF THE CONTRACTS!");
-  console.log("=================================================");
+  console.log("=============================================");
+  console.log("DON’T FORGET TO CLAIM OWNERSHIP OF REGULATOR!");
+  console.log("=============================================");
 }
 
 main()
