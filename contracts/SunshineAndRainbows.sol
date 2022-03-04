@@ -173,17 +173,17 @@ contract SunshineAndRainbows is Pausable, Ownable {
         virtual
         updatePosition(posId)
     {
-        Position memory position = positions[posId];
+        Position storage position = positions[posId];
         address sender = msg.sender;
         require(amount != 0, "SARS::withdraw: zero amount");
         require(position.owner == sender, "SARS::withdraw: unauthorized");
         if (position.balance == amount) {
-            positions[posId].balance = 0;
+            position.balance = 0;
             _userPositions[sender].remove(posId);
         } else if (position.balance < amount) {
             revert("SARS::withdraw: insufficient balance");
         } else {
-            positions[posId].balance = position.balance - amount;
+            position.balance -= (position.balance - amount);
         }
         totalSupply -= amount;
         IERC20(stakingToken).safeTransfer(sender, amount);
@@ -216,11 +216,11 @@ contract SunshineAndRainbows is Pausable, Ownable {
         updatePosition(posId)
         returns (uint)
     {
-        Position memory position = positions[posId];
+        Position storage position = positions[posId];
         require(position.owner == msg.sender, "SARS::_harvest: unauthorized");
         uint reward = uint(position.reward);
         if (reward != 0) {
-            positions[posId].reward = 0;
+            position.reward = 0;
             rewardRegulator.mint(to, reward);
             emit Harvest(posId, reward);
         }
