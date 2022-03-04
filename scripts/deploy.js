@@ -8,7 +8,7 @@ async function main() {
   const Factory = await ethers.getContractFactory("PangolinFactory");
   const Router = await ethers.getContractFactory("PangolinRouter");
   const Frens = await ethers.getContractFactory("CryptoFrens");
-  const Timelock = await ethers.getContractFactory("TimelockController");
+  const Timelock = await ethers.getContractFactory("Timelock");
   const Happy = await ethers.getContractFactory("Happy");
   const Regulator = await ethers.getContractFactory("RewardRegulator");
   const SunshineLP = await ethers.getContractFactory("SunshineAndRainbowsLP");
@@ -57,9 +57,8 @@ async function main() {
 
   //deploy timelock with 13 days delay
   const timelock = await Timelock.deploy(
-    86400 * 13,
-    [admin],
-    [admin]
+    admin,
+    86400 * 13
   );
   await timelock.deployed();
   console.log('TIMELOCK = "' + timelock.address + '"');
