@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPLv3
-// Author: shung from https://cryptofrens.xyz/
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Capped.sol";
 
+/// @author shung from https://cryptofrens.xyz/
 contract Happy is ERC20Burnable, ERC20Capped, Ownable {
     uint public burnedSupply;
 
