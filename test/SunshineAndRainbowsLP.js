@@ -67,6 +67,7 @@ describe("SunshineAndRainbowsLP.sol", function () {
       this.regulator.address
     );
     await this.sunshine.deployed();
+    await this.sunshine.resume();
 
     await this.happy.setMinter(this.admin.address);
     await this.wavax.setMinter(this.admin.address);

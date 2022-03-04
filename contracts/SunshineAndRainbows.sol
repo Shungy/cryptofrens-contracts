@@ -5,7 +5,7 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-import "./Claimable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 interface IRewardRegulator {
     function getRewards(address account) external view returns (uint);
@@ -23,7 +23,7 @@ interface IRewardRegulator {
 /// @dev For a general overview refer to `README.md`. For the proof of the
 /// algorithm refer to `documents/SunshineAndRainbows.pdf`.
 /// @author shung for Pangolin & cryptofrens.xyz
-contract SunshineAndRainbows is Pausable, Claimable {
+contract SunshineAndRainbows is Pausable, Ownable {
     using EnumerableSet for EnumerableSet.UintSet;
     using SafeERC20 for IERC20;
 
@@ -114,9 +114,6 @@ contract SunshineAndRainbows is Pausable, Claimable {
         );
         stakingToken = _stakingToken;
         rewardRegulator = IRewardRegulator(_rewardRegulator);
-    }
-
-    function pause() external onlyOwner {
         _pause();
     }
 
