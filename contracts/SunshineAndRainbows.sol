@@ -160,7 +160,7 @@ contract SunshineAndRainbows is Pausable, Ownable, ReentrancyGuard {
     }
 
     function pendingRewards(uint posId) external view returns (int) {
-        (uint x, uint y) = rewardVariables(
+        (uint x, uint y) = _rewardVariables(
             rewardRegulator.getRewards(address(this))
         );
         return _earned(posId, x, y);
@@ -235,7 +235,7 @@ contract SunshineAndRainbows is Pausable, Ownable, ReentrancyGuard {
 
     function _updateRewardVariables() internal {
         if (totalSupply != 0) {
-            (_idealPosition, _rewardsPerStakingDuration) = rewardVariables(
+            (_idealPosition, _rewardsPerStakingDuration) = _rewardVariables(
                 rewardRegulator.setRewards()
             );
         }
@@ -271,7 +271,7 @@ contract SunshineAndRainbows is Pausable, Ownable, ReentrancyGuard {
 
     /// @notice Two variables used in per-user APR calculation
     /// @param rewards The rewards of this contract for the last interval
-    function rewardVariables(uint rewards) private view returns (uint, uint) {
+    function _rewardVariables(uint rewards) private view returns (uint, uint) {
         // `stakingDuration` refers to `S` in the proof
         uint stakingDuration = block.timestamp * totalSupply - _sumOfEntryTimes;
         if (stakingDuration == 0)
