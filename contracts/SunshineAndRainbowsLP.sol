@@ -41,7 +41,7 @@ contract SunshineAndRainbowsLP is SunshineAndRainbows {
         _updateRewardVariables();
 
         // add liquidity
-        uint amount = _addLiquidity(_lockedHarvest(posId, address(this)));
+        uint amount = _addLiquidity(_lockedHarvest(posId));
 
         // Stake
         uint childPosId = _createPosition(to);
@@ -64,14 +64,14 @@ contract SunshineAndRainbowsLP is SunshineAndRainbows {
         super._withdraw(amount, posId);
     }
 
-    function _lockedHarvest(uint posId, address to) private returns (uint) {
+    function _lockedHarvest(uint posId) private returns (uint) {
         Position storage position = positions[posId];
         require(position.owner == msg.sender, "SARS::_harvest: unauthorized");
         int reward = _earned(posId, _idealPosition, _rewardsPerStakingDuration);
         assert(reward >= 0);
         if (reward != 0) {
             positions[posId].reward = -reward;
-            rewardRegulator.mint(to, uint(reward));
+            rewardRegulator.mint(address(this), uint(reward));
             emit Harvest(posId, uint(reward));
         }
         return uint(reward);
