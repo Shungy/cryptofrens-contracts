@@ -2,6 +2,7 @@
 // solhint-disable not-rely-on-time
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
@@ -23,7 +24,7 @@ interface IRewardRegulator {
 /// @dev For a general overview refer to `README.md`. For the proof of the
 /// algorithm refer to `documents/SunshineAndRainbows.pdf`.
 /// @author shung for Pangolin & cryptofrens.xyz
-contract SunshineAndRainbows is Pausable, Ownable {
+contract SunshineAndRainbows is Pausable, Ownable, ReentrancyGuard {
     using EnumerableSet for EnumerableSet.UintSet;
     using SafeERC20 for IERC20;
 
@@ -123,7 +124,7 @@ contract SunshineAndRainbows is Pausable, Ownable {
 
     /// @notice Harvests accumulated rewards of the user
     /// @param posId ID of the position to be harvested from
-    function harvest(uint posId) external {
+    function harvest(uint posId) external nonReentrant {
         _updateRewardVariables();
         require(_harvest(posId, msg.sender) != 0, "SARS::harvest: no reward");
     }
@@ -131,7 +132,12 @@ contract SunshineAndRainbows is Pausable, Ownable {
     /// @notice Creates a new position and stakes `amount` tokens to it
     /// @param amount Amount of tokens to stake
     /// @param to Owner of the new position
-    function stake(uint amount, address to) external virtual whenNotPaused {
+    function stake(uint amount, address to)
+        external
+        virtual
+        nonReentrant
+        whenNotPaused
+    {
         _updateRewardVariables();
         _stake(_createPosition(to), amount, msg.sender);
     }
@@ -139,12 +145,12 @@ contract SunshineAndRainbows is Pausable, Ownable {
     /// @notice Withdraws `amount` tokens from `posId`
     /// @param amount Amount of tokens to withdraw
     /// @param posId ID of the position to withdraw from
-    function withdraw(uint amount, uint posId) external virtual {
+    function withdraw(uint amount, uint posId) external virtual nonReentrant {
         _updateRewardVariables();
         _withdraw(amount, posId);
     }
 
-    function massExit(uint[] calldata posIds) external virtual {
+    function massExit(uint[] calldata posIds) external virtual nonReentrant {
         _updateRewardVariables();
         for (uint i; i < posIds.length; ++i) {
             uint posId = posIds[i];

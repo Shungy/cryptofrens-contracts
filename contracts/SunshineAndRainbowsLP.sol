@@ -32,7 +32,12 @@ contract SunshineAndRainbowsLP is SunshineAndRainbows {
     }
 
     /// @dev special harvest method that does not reset APR
-    function compound(uint posId, address to) external virtual whenNotPaused {
+    function compound(uint posId, address to)
+        external
+        virtual
+        nonReentrant
+        whenNotPaused
+    {
         _updateRewardVariables();
 
         // add liquidity
