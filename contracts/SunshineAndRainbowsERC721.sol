@@ -61,7 +61,7 @@ contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
         updatePosition(posId)
     {
         uint amount = tokens.length;
-        require(amount > 0, "SARS::stake: zero amount");
+        require(amount > 0, "SARS::_stake: zero amount");
         if (initTime == 0) {
             initTime = block.timestamp;
         }
@@ -86,13 +86,13 @@ contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
         Position memory position = positions[posId];
         uint amount = tokens.length;
         address sender = msg.sender;
-        require(amount > 0, "SARS::withdraw: zero amount");
-        require(position.owner == sender, "SARS::withdraw: unauthorized");
+        require(amount > 0, "SARS::_withdraw: zero amount");
+        require(position.owner == sender, "SARS::_withdraw: unauthorized");
         if (position.balance == amount) {
             positions[posId].balance = 0;
             _userPositions[sender].remove(posId);
         } else if (position.balance < amount) {
-            revert("SARS::withdraw: insufficient balance");
+            revert("SARS::_withdraw: insufficient balance");
         } else {
             positions[posId].balance = position.balance - amount;
         }
@@ -101,7 +101,7 @@ contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
             uint tokenId = tokens[i];
             require(
                 _tokensOf[posId].remove(tokenId),
-                "SARS::withdraw: wrong tokenId"
+                "SARS::_withdraw: wrong tokenId"
             );
             IERC721(stakingToken).transferFrom(address(this), sender, tokenId);
         }

@@ -195,7 +195,7 @@ describe("SunshineAndRainbowsERC721.sol", function () {
 
       await expect(
         this.sunshine.stakeERC721([], this.admin.address)
-      ).to.be.revertedWith("SARS::stake: zero amount");
+      ).to.be.revertedWith("SARS::_stake: zero amount");
 
       expect(await this.sunshine.initTime()).to.equal("0");
       expect(await this.frens.balanceOf(this.sunshine.address)).to.equal("0");
@@ -405,7 +405,7 @@ describe("SunshineAndRainbowsERC721.sol", function () {
       expect(await this.frens.balanceOf(this.sunshine.address)).to.equal("1");
 
       await expect(this.sunshine.withdrawERC721([], "1")).to.be.revertedWith(
-        "SARS::withdraw: zero amount"
+        "SARS::_withdraw: zero amount"
       );
 
       expect(await this.sunshine.totalSupply()).to.equal("1");
@@ -432,7 +432,7 @@ describe("SunshineAndRainbowsERC721.sol", function () {
 
       await expect(
         this.sunshine.withdrawERC721(["1", "2"], "1")
-      ).to.be.revertedWith("SARS::withdraw: insufficient balance");
+      ).to.be.revertedWith("SARS::_withdraw: insufficient balance");
 
       expect(await this.sunshine.totalSupply()).to.equal("1");
       expect(await this.frens.balanceOf(this.sunshine.address)).to.equal("1");
@@ -457,7 +457,7 @@ describe("SunshineAndRainbowsERC721.sol", function () {
       expect(await this.frens.balanceOf(this.sunshine.address)).to.equal("1");
 
       await expect(this.sunshine.withdrawERC721(["2"], "1")).to.be.revertedWith(
-        "SARS::withdraw: wrong tokenId"
+        "SARS::_withdraw: wrong tokenId"
       );
 
       expect(await this.sunshine.totalSupply()).to.equal("1");
@@ -485,7 +485,7 @@ describe("SunshineAndRainbowsERC721.sol", function () {
       sunshine = await this.sunshine.connect(this.unauthorized);
 
       await expect(sunshine.withdrawERC721(["1"], "1")).to.be.revertedWith(
-        "SARS::withdraw: unauthorized"
+        "SARS::_withdraw: unauthorized"
       );
 
       expect(await this.sunshine.totalSupply()).to.equal("1");

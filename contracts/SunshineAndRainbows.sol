@@ -181,13 +181,13 @@ contract SunshineAndRainbows is Pausable, Ownable, ReentrancyGuard {
     {
         Position storage position = positions[posId];
         address sender = msg.sender;
-        require(amount != 0, "SARS::withdraw: zero amount");
-        require(position.owner == sender, "SARS::withdraw: unauthorized");
+        require(amount != 0, "SARS::_withdraw: zero amount");
+        require(position.owner == sender, "SARS::_withdraw: unauthorized");
         if (position.balance == amount) {
             position.balance = 0;
             _userPositions[sender].remove(posId);
         } else if (position.balance < amount) {
-            revert("SARS::withdraw: insufficient balance");
+            revert("SARS::_withdraw: insufficient balance");
         } else {
             position.balance -= (position.balance - amount);
         }
@@ -250,8 +250,7 @@ contract SunshineAndRainbows is Pausable, Ownable, ReentrancyGuard {
     }
 
     /// @param posId position id
-    /// @return amount of reward tokens the account earned between its last
-    /// harvest and the contract’s last update
+    /// @return amount of reward tokens the account can harvest
     function _earned(
         uint posId,
         uint idealPosition,

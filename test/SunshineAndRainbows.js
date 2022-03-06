@@ -295,7 +295,7 @@ describe("SunshineAndRainbows.sol", function () {
       expect(await this.pgl.balanceOf(this.sunshine.address)).to.equal("1");
 
       await expect(this.sunshine.withdraw("0", "1")).to.be.revertedWith(
-        "SARS::withdraw: zero amount"
+        "SARS::_withdraw: zero amount"
       );
 
       expect(await this.sunshine.totalSupply()).to.equal("1");
@@ -322,7 +322,7 @@ describe("SunshineAndRainbows.sol", function () {
       expect(await this.pgl.balanceOf(this.sunshine.address)).to.equal("1");
 
       await expect(this.sunshine.withdraw("2", "1")).to.be.revertedWith(
-        "SARS::withdraw: insufficient balance"
+        "SARS::_withdraw: insufficient balance"
       );
 
       expect(await this.sunshine.totalSupply()).to.equal("1");
@@ -351,7 +351,7 @@ describe("SunshineAndRainbows.sol", function () {
       sunshine = await this.sunshine.connect(this.unauthorized);
 
       await expect(sunshine.withdraw("1", "1")).to.be.revertedWith(
-        "SARS::withdraw: unauthorized"
+        "SARS::_withdraw: unauthorized"
       );
 
       expect(await this.sunshine.totalSupply()).to.equal("1");
