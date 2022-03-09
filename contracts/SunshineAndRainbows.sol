@@ -257,6 +257,9 @@ contract SunshineAndRainbows is Pausable, Ownable, ReentrancyGuard {
         uint rewardsPerStakingDuration
     ) internal view returns (int) {
         Position memory position = positions[posId];
+        if (position.lastUpdate == 0) {
+            return 0;
+        }
         return
             int(
                 ((idealPosition -
