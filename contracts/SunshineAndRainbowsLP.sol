@@ -70,7 +70,7 @@ contract SunshineAndRainbowsLP is SunshineAndRainbows {
         int reward = _earned(posId, _idealPosition, _rewardsPerStakingDuration);
         assert(reward >= 0);
         if (reward != 0) {
-            positions[posId].reward = -reward;
+            positions[posId].reward -= reward;
             rewardRegulator.mint(address(this), uint(reward));
             emit Harvest(posId, uint(reward));
         }
