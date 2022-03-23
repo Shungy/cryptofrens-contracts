@@ -189,7 +189,7 @@ contract SunshineAndRainbows is Pausable, Ownable, ReentrancyGuard {
         } else if (position.balance < amount) {
             revert("SARS::_withdraw: insufficient balance");
         } else {
-            position.balance -= (position.balance - amount);
+            position.balance -= amount;
         }
         totalSupply -= amount;
         IERC20(stakingToken).safeTransfer(sender, amount);
