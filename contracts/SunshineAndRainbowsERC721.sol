@@ -40,9 +40,13 @@ contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
         }
     }
 
-    function stake(uint, address) external pure override {}
+    function stake(uint, address) external pure override {
+        revert("SARS::stake: use `stakeERC721`");
+    }
 
-    function withdraw(uint, uint) external pure override {}
+    function withdraw(uint, uint) external pure override {
+        revert("SARS::withdraw: use `withdrawERC721`");
+    }
 
     function tokensOf(uint posId) public view returns (uint[] memory) {
         return _tokensOf[posId].values();
@@ -52,9 +56,13 @@ contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
         uint,
         uint,
         address
-    ) internal pure override {}
+    ) internal pure override {
+        revert();
+    }
 
-    function _withdraw(uint, uint) internal pure override {}
+    function _withdraw(uint, uint) internal pure override {
+        revert();
+    }
 
     function _stakeERC721(uint posId, uint[] memory tokens)
         private
