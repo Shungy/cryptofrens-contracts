@@ -187,10 +187,12 @@ contract RewardRegulator is Claimable, Pausable {
             "RewardRegulator::setHalfSupply: new half supply is the same"
         );
         if (newHalfSupply < halfSupply) {
-            require(
-                halfSupply - newHalfSupply < 30 days,
-                "RewardRegulator::setHalfSupply: cannot lower by that much"
-            );
+            unchecked {
+                require(
+                    halfSupply - newHalfSupply < 30 days,
+                    "RewardRegulator::setHalfSupply: cannot lower by that much"
+                );
+            }
         }
         require(
             block.timestamp - halfSupplyLastUpdate > 2 days,
