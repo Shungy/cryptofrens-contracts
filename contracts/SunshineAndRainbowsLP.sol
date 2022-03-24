@@ -36,7 +36,6 @@ contract SunshineAndRainbowsLP is SunshineAndRainbows {
         external
         virtual
         nonReentrant
-        whenNotPaused
     {
         _updateRewardVariables();
 

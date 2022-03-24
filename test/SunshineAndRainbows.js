@@ -52,7 +52,6 @@ describe("SunshineAndRainbows.sol", function () {
       this.regulator.address
     );
     await this.sunshine.deployed();
-    await this.sunshine.resume();
 
     await this.happy.setMinter(this.regulator.address);
     await this.regulator.setMinters([this.sunshine.address], [DENOMINATOR]);

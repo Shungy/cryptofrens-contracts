@@ -17,7 +17,6 @@ contract SunshineAndRainbowsERC721 is SunshineAndRainbows {
     function stakeERC721(uint[] calldata tokens, address to)
         external
         nonReentrant
-        whenNotPaused
     {
         _updateRewardVariables();
         _stakeERC721(_createPosition(to), tokens);
