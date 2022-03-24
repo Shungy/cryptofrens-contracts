@@ -122,10 +122,10 @@ contract RewardRegulator is Claimable, Pausable {
     /// @notice Changes minter allocations
     /// @param accounts The list of addresses to have a new allocation
     /// @param allocations The list of allocations corresponding to `accounts`
-    function setMinters(address[] memory accounts, uint[] memory allocations)
-        external
-        onlyOwner
-    {
+    function setMinters(
+        address[] calldata accounts,
+        uint[] calldata allocations
+    ) external onlyOwner {
         uint length = accounts.length;
         require(
             length == allocations.length,
