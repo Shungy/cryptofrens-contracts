@@ -94,13 +94,12 @@ contract RewardRegulator is Claimable, Pausable {
     /// @notice Requests the declaration of rewards for the message sender
     /// @return The amount of reward tokens that became eligible for minting
     function setRewards() external returns (uint) {
-        address sender = msg.sender;
-        uint rewards = getRewards(sender);
-        minters[sender].lastUpdate = block.timestamp;
-        minters[sender].unminted += rewards;
-        minters[sender].undeclared = 0;
+        uint rewards = getRewards(msg.sender);
+        minters[msg.sender].lastUpdate = block.timestamp;
+        minters[msg.sender].unminted += rewards;
+        minters[msg.sender].undeclared = 0;
         totalEmitted += rewards;
-        emit RewardDeclaration(sender, rewards);
+        emit RewardDeclaration(msg.sender, rewards);
         return rewards;
     }
 
@@ -108,13 +107,12 @@ contract RewardRegulator is Claimable, Pausable {
     /// @param to The recipient address of the freshly minted tokens
     /// @param amount The amount of tokens to mint
     function mint(address to, uint amount) external whenNotPaused {
-        address sender = msg.sender;
         require(
-            amount <= minters[sender].unminted && amount > 0,
+            amount <= minters[msg.sender].unminted && amount > 0,
             "RewardRegulator::mint: Invalid mint amount"
         );
         unchecked {
-            minters[sender].unminted -= amount;
+            minters[msg.sender].unminted -= amount;
         }
         happy.mint(to, amount);
     }
@@ -131,7 +129,6 @@ contract RewardRegulator is Claimable, Pausable {
             length == allocations.length,
             "RewardRegulator::setMinters: arrays must be of equal length"
         );
-        uint blockTime = block.timestamp;
         int totalAllocChange;
         for (uint i; i < length; ++i) {
             address account = accounts[i];
@@ -155,7 +152,7 @@ contract RewardRegulator is Claimable, Pausable {
                 // its undeclared and unminted amounts are both 0.
                 _minterAddresses.remove(account);
             }
-            minter.lastUpdate = blockTime;
+            minter.lastUpdate = block.timestamp;
             totalAllocChange += int(oldAlloc) - int(newAlloc);
             minter.allocation = newAlloc;
             emit NewAllocation(account, newAlloc);
@@ -193,9 +190,8 @@ contract RewardRegulator is Claimable, Pausable {
                 "RewardRegulator::setHalfSupply: cannot lower by that much"
             );
         }
-        uint blockTime = block.timestamp;
         require(
-            blockTime - halfSupplyLastUpdate > 2 days,
+            block.timestamp - halfSupplyLastUpdate > 2 days,
             "RewardRegulator::setHalfSupply: cannot update that often"
         );
         uint length = _minterAddresses.length();
@@ -203,10 +199,10 @@ contract RewardRegulator is Claimable, Pausable {
             address account = _minterAddresses.at(i);
             // stash the undeclared rewards
             minters[account].undeclared = getRewards(account);
-            minters[account].lastUpdate = blockTime;
+            minters[account].lastUpdate = block.timestamp;
         }
         halfSupply = newHalfSupply;
-        halfSupplyLastUpdate = blockTime;
+        halfSupplyLastUpdate = block.timestamp;
         emit NewHalfSupply(halfSupply);
     }
 
