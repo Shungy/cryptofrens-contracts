@@ -136,7 +136,7 @@ contract RewardRegulator is Claimable, Pausable {
         for (uint i; i < length; ++i) {
             address account = accounts[i];
             uint newAlloc = allocations[i];
-            Minter memory minter = minters[account];
+            Minter storage minter = minters[account];
             uint oldAlloc = minter.allocation;
             require(
                 newAlloc != oldAlloc,
@@ -147,7 +147,7 @@ contract RewardRegulator is Claimable, Pausable {
                 _minterAddresses.add(account);
             } else {
                 // stash the undeclared rewards
-                minters[account].undeclared = getRewards(account);
+                minter.undeclared = getRewards(account);
             }
             if (newAlloc == 0) {
                 // remove minter from set.
@@ -155,9 +155,9 @@ contract RewardRegulator is Claimable, Pausable {
                 // its undeclared and unminted amounts are both 0.
                 _minterAddresses.remove(account);
             }
-            minters[account].lastUpdate = blockTime;
+            minter.lastUpdate = blockTime;
             totalAllocChange += int(oldAlloc) - int(newAlloc);
-            minters[account].allocation = newAlloc;
+            minter.allocation = newAlloc;
             emit NewAllocation(account, newAlloc);
         }
         // total allocations can only equal 0 or DENOMINATOR
