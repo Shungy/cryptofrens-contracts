@@ -16,6 +16,8 @@ contract Happy is ERC20Burnable, ERC20Capped, Ownable {
     address public minter;
 
     event NewMinter(address newMinter);
+    event NewLogoURI(string newLogoURI);
+    event NewExternalURI(string newExternalURI);
 
     // solhint-disable-next-line no-empty-blocks
     constructor() ERC20("Happiness", "HAPPY") ERC20Capped(69_666_420.13e18) {}
@@ -32,10 +34,12 @@ contract Happy is ERC20Burnable, ERC20Capped, Ownable {
 
     function setLogoURI(string memory newLogoURI) external onlyOwner {
         logoURI = newLogoURI;
+        emit NewLogoURI(newLogoURI);
     }
 
     function setExternalURI(string memory newExternalURI) external onlyOwner {
         externalURI = newExternalURI;
+        emit NewExternalURI(newExternalURI);
     }
 
     function mintableTotal() external view returns (uint) {
