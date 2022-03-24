@@ -155,15 +155,15 @@ contract RewardRegulator is Claimable, Pausable {
                 _minterAddresses.remove(account);
             }
             minter.lastUpdate = block.timestamp;
-            totalAllocChange += int(oldAlloc) - int(newAlloc);
+            totalAllocChange += int(newAlloc) - int(oldAlloc);
             minter.allocation = newAlloc;
             emit NewAllocation(account, newAlloc);
         }
         // total allocations can only equal 0 or DENOMINATOR
-        if (totalAllocChange == int(DENOMINATOR) && initiated) {
+        if (totalAllocChange == -int(DENOMINATOR) && initiated) {
             initiated = false;
             emit Initiation(false);
-        } else if (totalAllocChange == -int(DENOMINATOR) && !initiated) {
+        } else if (totalAllocChange == int(DENOMINATOR) && !initiated) {
             initiated = true;
             emit Initiation(true);
         } else {
