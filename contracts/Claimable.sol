@@ -18,4 +18,8 @@ contract Claimable is Ownable {
         _pendingOwner = newOwner;
         emit PendingOwnerSet(newOwner);
     }
+
+    function pendingOwner() public view virtual returns (address) {
+        return _pendingOwner;
+    }
 }
