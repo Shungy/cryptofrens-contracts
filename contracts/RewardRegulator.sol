@@ -198,7 +198,8 @@ contract RewardRegulator is Claimable, Pausable {
             blockTime - halfSupplyLastUpdate > 2 days,
             "RewardRegulator::setHalfSupply: cannot update that often"
         );
-        for (uint i; i < _minterAddresses.length(); ++i) {
+        uint length = _minterAddresses.length();
+        for (uint i; i < length; ++i) {
             address account = _minterAddresses.at(i);
             // stash the undeclared rewards
             minters[account].undeclared = getRewards(account);
