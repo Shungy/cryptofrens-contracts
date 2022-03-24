@@ -103,7 +103,7 @@ contract SunshineAndRainbows is ReentrancyGuard {
             position.rewardsPerStakingDuration = _rewardsPerStakingDuration;
         }
         _;
-        sumOfEntryTimes += (block.timestamp * positions[posId].balance);
+        sumOfEntryTimes += (block.timestamp * position.balance);
     }
 
     constructor(address _stakingToken, address _rewardRegulator) {
