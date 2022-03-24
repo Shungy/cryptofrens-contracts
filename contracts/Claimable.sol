@@ -11,6 +11,7 @@ contract Claimable is Ownable {
     function claimOwnership() external {
         require(_msgSender() == _pendingOwner, "Claimable: not pending owner");
         _transferOwnership(_pendingOwner);
+        delete _pendingOwner;
     }
 
     function transferOwnership(address newOwner) public override onlyOwner {
