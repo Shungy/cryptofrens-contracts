@@ -6,6 +6,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract Claimable is Ownable {
     address private _pendingOwner;
 
+    event PendingOwnerSet(address indexed pendingOwner);
+
     function claimOwnership() external {
         require(_msgSender() == _pendingOwner, "Claimable: not pending owner");
         _transferOwnership(_pendingOwner);
@@ -13,5 +15,6 @@ contract Claimable is Ownable {
 
     function transferOwnership(address newOwner) public override onlyOwner {
         _pendingOwner = newOwner;
+        emit PendingOwnerSet(newOwner);
     }
 }
