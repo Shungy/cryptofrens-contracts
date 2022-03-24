@@ -52,7 +52,7 @@ contract SunshineAndRainbows is ReentrancyGuard {
     IRewardRegulator public immutable rewardRegulator;
 
     /// @notice The token that can be staked in the contract
-    address public stakingToken;
+    address public immutable stakingToken;
 
     /// @notice Total amount of tokens staked in the contract
     uint public totalSupply;
