@@ -95,9 +95,10 @@ contract RewardRegulator is Claimable, Pausable {
     /// @return The amount of reward tokens that became eligible for minting
     function setRewards() external returns (uint) {
         uint rewards = getRewards(msg.sender);
-        minters[msg.sender].lastUpdate = block.timestamp;
-        minters[msg.sender].unminted += rewards;
-        minters[msg.sender].undeclared = 0;
+        Minter storage minter = minters[msg.sender];
+        minter.lastUpdate = block.timestamp;
+        minter.unminted += rewards;
+        minter.undeclared = 0;
         totalEmitted += rewards;
         emit RewardDeclaration(msg.sender, rewards);
         return rewards;
@@ -107,12 +108,13 @@ contract RewardRegulator is Claimable, Pausable {
     /// @param to The recipient address of the freshly minted tokens
     /// @param amount The amount of tokens to mint
     function mint(address to, uint amount) external whenNotPaused {
+        Minter storage minter = minters[msg.sender];
         require(
-            amount <= minters[msg.sender].unminted && amount > 0,
+            amount <= minter.unminted && amount > 0,
             "RewardRegulator::mint: Invalid mint amount"
         );
         unchecked {
-            minters[msg.sender].unminted -= amount;
+            minter.unminted -= amount;
         }
         happy.mint(to, amount);
     }
@@ -197,9 +199,10 @@ contract RewardRegulator is Claimable, Pausable {
         uint length = _minterAddresses.length();
         for (uint i; i < length; ++i) {
             address account = _minterAddresses.at(i);
+            Minter storage minter = minters[account];
             // stash the undeclared rewards
-            minters[account].undeclared = getRewards(account);
-            minters[account].lastUpdate = block.timestamp;
+            minter.undeclared = getRewards(account);
+            minter.lastUpdate = block.timestamp;
         }
         halfSupply = newHalfSupply;
         halfSupplyLastUpdate = block.timestamp;
