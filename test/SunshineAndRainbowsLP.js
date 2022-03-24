@@ -11,6 +11,7 @@ const HALF_SUPPLY = ONE_DAY.mul("200");
 const TOTAL_SUPPLY = ethers.utils.parseUnits("69666420130", 15);
 const ZERO_ADDRESS = ethers.constants.AddressZero;
 const PRECISION = ethers.utils.parseUnits("1", 30);
+const UINT_MAX = BigNumber.from("2").pow("256").sub("1");
 
 function getRewards(interval) {
   return TOTAL_SUPPLY.mul(interval).div(HALF_SUPPLY.add(interval));
@@ -144,7 +145,7 @@ describe("SunshineAndRainbowsLP.sol", function () {
       expect(position.owner).to.equal(this.admin.address);
 
       await this.wavax.approve(this.sunshine.address, TOTAL_SUPPLY);
-      await this.sunshine.compound("1", this.admin.address);
+      await this.sunshine.compound("1", this.admin.address, UINT_MAX);
 
       //var position = await this.sunshine.positions("1");
 

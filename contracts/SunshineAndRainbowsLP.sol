@@ -32,11 +32,15 @@ contract SunshineAndRainbowsLP is SunshineAndRainbows {
     }
 
     /// @dev special harvest method that does not reset APR
-    function compound(uint posId, address to) external virtual nonReentrant {
+    function compound(
+        uint posId,
+        address to,
+        uint maxPairAmount
+    ) external virtual nonReentrant {
         _updateRewardVariables();
 
         // add liquidity
-        uint amount = _addLiquidity(_lockedHarvest(posId));
+        uint amount = _addLiquidity(_lockedHarvest(posId), maxPairAmount);
 
         // Stake
         uint childPosId = _createPosition(to);
@@ -72,7 +76,10 @@ contract SunshineAndRainbowsLP is SunshineAndRainbows {
         return uint(reward);
     }
 
-    function _addLiquidity(uint reward) private returns (uint) {
+    function _addLiquidity(uint reward, uint maxPairAmount)
+        private
+        returns (uint)
+    {
         require(reward != 0, "SARS::_addLiquidity: no reward");
         (uint reserve0, uint reserve1, ) = pair.getReserves();
         require(
@@ -90,6 +97,11 @@ contract SunshineAndRainbowsLP is SunshineAndRainbows {
             pairToken = pair.token0();
             pairAmount = (reward * reserve0) / reserve1;
         }
+
+        require(
+            maxPairAmount >= pairAmount,
+            "SARS::_addLiquidity: high slippage"
+        );
 
         IERC20(pairToken).safeTransferFrom(
             msg.sender,
