@@ -164,9 +164,7 @@ contract RewardRegulator is Claimable, Pausable {
         if (totalAllocChange == int(DENOMINATOR) && initiated) {
             initiated = false;
             emit Initiation(false);
-        } else if (
-            totalAllocChange == -int(DENOMINATOR) && !initiated
-        ) {
+        } else if (totalAllocChange == -int(DENOMINATOR) && !initiated) {
             initiated = true;
             emit Initiation(true);
         } else {

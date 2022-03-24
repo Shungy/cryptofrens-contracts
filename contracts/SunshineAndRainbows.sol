@@ -125,11 +125,7 @@ contract SunshineAndRainbows is ReentrancyGuard {
     /// @notice Creates a new position and stakes `amount` tokens to it
     /// @param amount Amount of tokens to stake
     /// @param to Owner of the new position
-    function stake(uint amount, address to)
-        external
-        virtual
-        nonReentrant
-    {
+    function stake(uint amount, address to) external virtual nonReentrant {
         _updateRewardVariables();
         _stake(_createPosition(to), amount, msg.sender);
     }
@@ -200,11 +196,7 @@ contract SunshineAndRainbows is ReentrancyGuard {
         totalSupply += amount;
         positions[posId].balance += amount;
         if (from != address(this)) {
-            IERC20(stakingToken).safeTransferFrom(
-                from,
-                address(this),
-                amount
-            );
+            IERC20(stakingToken).safeTransferFrom(from, address(this), amount);
         }
         emit Stake(posId, amount);
     }
