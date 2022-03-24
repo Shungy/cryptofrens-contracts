@@ -29,7 +29,7 @@ contract Happy is ERC20Burnable, ERC20Capped, Ownable {
 
     function setMinter(address newMinter) external onlyOwner {
         minter = newMinter;
-        emit NewMinter(minter);
+        emit NewMinter(newMinter);
     }
 
     function setLogoURI(string memory newLogoURI) external onlyOwner {
