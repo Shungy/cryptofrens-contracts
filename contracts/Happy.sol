@@ -1,30 +1,36 @@
 // SPDX-License-Identifier: GPLv3
-pragma solidity ^0.8.0;
+pragma solidity 0.8.13;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Capped.sol";
+import "@rari-capital/solmate/src/tokens/ERC20.sol";
 
 /// @author shung for https://cryptofrens.xyz/
-contract Happy is ERC20Burnable, ERC20Capped, Ownable {
-    uint public burnedSupply;
+contract Happy is ERC20("Happiness", "HAPPY", 18), Ownable {
+    uint256 public burnedSupply;
+    uint256 public constant cap = 69_666_420.13e18;
 
-    // non-standard metadata
-    string public externalURI = "https://cryptofrens.xyz/happy";
+    string public websiteURI = "https://cryptofrens.xyz/happy";
     string public logoURI = "https://cryptofrens.xyz/happy/logo.png";
 
     address public minter;
 
     event NewMinter(address newMinter);
     event NewLogoURI(string newLogoURI);
-    event NewExternalURI(string newExternalURI);
+    event NewWebsiteURI(string newWebsiteURI);
 
-    // solhint-disable-next-line no-empty-blocks
-    constructor() ERC20("Happiness", "HAPPY") ERC20Capped(69_666_420.13e18) {}
+    function burn(uint256 amount) external {
+        _burn(msg.sender, amount);
+    }
 
-    function mint(address account, uint amount) external {
-        require(msg.sender == minter, "Happy::mint: unauthorized sender");
-        _mint(account, amount);
+    function burnFrom(address from, uint256 amount) external {
+        uint256 allowed = allowance[from][msg.sender];
+        if (allowed != type(uint256).max) allowance[from][msg.sender] = allowed - amount;
+        _burn(from, amount);
+    }
+
+    function mint(address to, uint256 amount) external {
+        require(msg.sender == minter, "unauthorized");
+        _mint(to, amount);
     }
 
     function setMinter(address newMinter) external onlyOwner {
@@ -37,24 +43,23 @@ contract Happy is ERC20Burnable, ERC20Capped, Ownable {
         emit NewLogoURI(newLogoURI);
     }
 
-    function setExternalURI(string memory newExternalURI) external onlyOwner {
-        externalURI = newExternalURI;
-        emit NewExternalURI(newExternalURI);
+    function setExternalURI(string memory newWebsiteURI) external onlyOwner {
+        websiteURI = newWebsiteURI;
+        emit NewWebsiteURI(newWebsiteURI);
     }
 
-    function mintableTotal() external view returns (uint) {
-        return cap() + burnedSupply;
+    function _mint(address to, uint256 amount) internal override {
+        uint256 newSupply = totalSupply + amount;
+        require(newSupply <= cap, "cap exceeded");
+        totalSupply = newSupply;
+        unchecked {
+            balanceOf[to] += amount;
+        }
+        emit Transfer(address(0), to, amount);
     }
 
-    function _mint(address to, uint amount)
-        internal
-        override(ERC20, ERC20Capped)
-    {
-        super._mint(to, amount);
-    }
-
-    function _burn(address from, uint amount) internal override {
-        super._burn(from, amount);
+    function _burn(address from, uint256 amount) internal override {
         burnedSupply += amount;
+        super._burn(from, amount);
     }
 }

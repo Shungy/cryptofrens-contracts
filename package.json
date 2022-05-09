@@ -34,14 +34,16 @@
     "surya": "^0.4.5"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.4.0"
+    "@openzeppelin/contracts": "^4.4.0",
+    "@rari-capital/solmate": "^6.2.0"
   },
   "prettier": {
     "overrides": [
       {
         "files": "*.sol",
         "options": {
-          "explicitTypes": "never"
+          "explicitTypes": "always",
+          "printWidth": 99
         }
       }
     ]
