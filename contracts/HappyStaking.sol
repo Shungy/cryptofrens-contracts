@@ -2,7 +2,13 @@
 // solhint-disable not-rely-on-time
 pragma solidity 0.8.13;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+interface IERC20 {
+    function approve(address spender, uint256 amount) external returns (bool);
+
+    function transfer(address to, uint256 amount) external returns (bool);
+
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
+}
 
 interface IPair is IERC20 {
     function token0() external view returns (address);
@@ -115,11 +121,9 @@ contract HappyStaking {
     event Compounded(address indexed user, uint256 amount, uint256 reward);
     event Locked(address indexed user, address indexed to, uint256 reward);
 
-    error InvalidInputAmount(uint256 inputAmount);
-    error RewardOverflow(uint256 rewardAdded);
+    error InvalidAmount(uint256 inputAmount);
     error TransferFailed();
     error HighSlippage();
-    error LockerUnset();
     error LowReserves();
     error NoReward();
 
@@ -166,7 +170,7 @@ contract HappyStaking {
 
         uint256 newTotalStaked = totalStaked + amount;
         if (amount == 0 || newTotalStaked > type(uint88).max) {
-            revert InvalidInputAmount(amount);
+            revert InvalidAmount(amount);
         }
 
         uint128 addedEntryTimes = uint128(block.timestamp * amount);
@@ -193,7 +197,7 @@ contract HappyStaking {
         User storage user = users[msg.sender];
 
         uint256 oldBalance = user.balance;
-        if (amount == 0 || amount > oldBalance) revert InvalidInputAmount(amount);
+        if (amount == 0 || amount > oldBalance) revert InvalidAmount(amount);
         uint256 remaining;
         unchecked {
             remaining = oldBalance - amount;
@@ -213,7 +217,8 @@ contract HappyStaking {
         user.rewardPerValue = _rewardPerValue;
 
         if (!PAIR.transfer(msg.sender, amount)) revert TransferFailed();
-        if (reward != 0) if (!HAPPY.transfer(msg.sender, reward)) revert TransferFailed();
+        if (reward != 0)
+            if (!HAPPY.transfer(msg.sender, reward)) revert TransferFailed();
         emit Withdrawn(msg.sender, amount, reward);
     }
 
@@ -239,21 +244,19 @@ contract HappyStaking {
         emit Harvested(msg.sender, reward);
     }
 
-    function lock() external {
+    function lock(uint256 amount) external {
         _updateRewardVariables();
 
         User storage user = users[msg.sender];
 
         address locker = CHEF.locker();
-        if (locker == address(0)) revert LockerUnset();
-
         uint256 reward = _earned();
-        if (reward == 0) revert NoReward();
-        user.stash -= reward.toInt88();
+        if (amount == 0 || amount > reward) revert InvalidAmount(amount);
+        user.stash -= amount.toInt88();
 
-        if (!HAPPY.transfer(locker, reward)) revert TransferFailed();
+        if (!HAPPY.transfer(locker, amount)) revert TransferFailed();
         ILocker(locker).lock(msg.sender); // skim
-        emit Locked(msg.sender, locker, reward);
+        emit Locked(msg.sender, locker, amount);
     }
 
     function compound(uint256 maxPairAmount) external {
@@ -269,7 +272,7 @@ contract HappyStaking {
     function emergencyExit() external {
         User memory user = users[msg.sender];
         uint88 balance = user.balance;
-        if (balance == 0) revert InvalidInputAmount(0);
+        if (balance == 0) revert InvalidAmount(0);
         totalStaked -= balance;
         sumOfEntryTimes -= user.entryTimes;
         user.balance = 0;
@@ -299,7 +302,8 @@ contract HappyStaking {
         tmpIdealPosition -= user.idealPosition;
         int256 newReward = (((tmpIdealPosition -
             (tmpRewardPerValue * (user.lastUpdate - initTime))) * balance) +
-            (tmpRewardPerValue * user.previousValues)).toInt256();
+            (tmpRewardPerValue * user.previousValues) /
+            PRECISION).toInt256();
         return (user.stash + newReward).toUint256();
     }
 
@@ -339,7 +343,7 @@ contract HappyStaking {
 
         uint256 newTotalStaked = totalStaked + amount;
         if (amount == 0 || newTotalStaked > type(uint88).max) {
-            revert InvalidInputAmount(amount);
+            revert InvalidAmount(amount);
         }
 
         uint128 addedEntryTimes = uint128(block.timestamp * amount);

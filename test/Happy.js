@@ -15,7 +15,7 @@ const EXTERNAL_URI = "https://cryptofrens.xyz/happy";
 const EXAMPLE_URI = "https://example.com/"
 
 // Start test block
-describe("Happy.sol", function () {
+describe.only("Happy.sol", function () {
   before(async function () {
     // Get all signers
     this.signers = await ethers.getSigners();
@@ -61,8 +61,8 @@ describe("Happy.sol", function () {
       expect(await this.happy.cap()).to.equal(TOTAL_SUPPLY);
     });
 
-    it("default: externalURI", async function () {
-      expect(await this.happy.externalURI()).to.equal(EXTERNAL_URI);
+    it("default: websiteURI", async function () {
+      expect(await this.happy.websiteURI()).to.equal(EXTERNAL_URI);
     });
 
     it("default: logoURI", async function () {
@@ -73,8 +73,8 @@ describe("Happy.sol", function () {
       expect(await this.happy.minter()).to.equal(ZERO_ADDRESS);
     });
 
-    it("default: mintableTotal", async function () {
-      expect(await this.happy.mintableTotal()).to.equal(TOTAL_SUPPLY);
+    it("default: cap", async function () {
+      expect(await this.happy.cap()).to.equal(TOTAL_SUPPLY);
     });
 
   });
@@ -86,7 +86,7 @@ describe("Happy.sol", function () {
   describe("mint", function () {
     it("unauthorized cannot mint", async function () {
       await expect(this.happy.mint(this.admin.address, TOTAL_SUPPLY))
-        .to.be.revertedWith("Happy::mint: unauthorized sender");
+        .to.be.revertedWith("unauthorized");
 
       expect(await this.happy.balanceOf(this.admin.address)).to.equal("0");
       expect(await this.happy.totalSupply()).to.equal("0");
@@ -127,7 +127,7 @@ describe("Happy.sol", function () {
       expect(await this.happy.minter()).to.equal(this.admin.address);
 
       await expect(this.happy.mint(this.admin.address, TOTAL_SUPPLY.add("1")))
-        .to.be.revertedWith("ERC20Capped: cap exceeded");
+        .to.be.revertedWith("cap exceeded");
 
       expect(await this.happy.balanceOf(this.admin.address)).to.equal("0");
       expect(await this.happy.totalSupply()).to.equal("0");
@@ -163,26 +163,26 @@ describe("Happy.sol", function () {
 
 
   //////////////////////////////
-  //     setExternalURI
+  //     setWebsiteURI
   //////////////////////////////
-  describe("setExternalURI", function () {
+  describe("setWebsiteURI", function () {
     it("unauthorized cannot set external URI", async function () {
       happy = await this.happy.connect(this.unauthorized);
 
-      expect(await this.happy.externalURI()).to.equal(EXTERNAL_URI);
+      expect(await this.happy.websiteURI()).to.equal(EXTERNAL_URI);
 
-      await expect(happy.setExternalURI(EXAMPLE_URI))
+      await expect(happy.setWebsiteURI(EXAMPLE_URI))
         .to.be.revertedWith("Ownable: caller is not the owner");
 
-      expect(await this.happy.externalURI()).to.equal(EXTERNAL_URI);
+      expect(await this.happy.websiteURI()).to.equal(EXTERNAL_URI);
     });
 
     it("authorized can set logo URI", async function () {
-      expect(await this.happy.externalURI()).to.equal(EXTERNAL_URI);
+      expect(await this.happy.websiteURI()).to.equal(EXTERNAL_URI);
 
-      await this.happy.setExternalURI(EXAMPLE_URI);
+      await this.happy.setWebsiteURI(EXAMPLE_URI);
 
-      expect(await this.happy.externalURI()).to.equal(EXAMPLE_URI);
+      expect(await this.happy.websiteURI()).to.equal(EXAMPLE_URI);
     });
 
   });
@@ -223,7 +223,6 @@ describe("Happy.sol", function () {
   describe("burnedSupply", function () {
     it("increases burned supply with burn()", async function () {
       expect(await this.happy.burnedSupply()).to.equal("0");
-      expect(await this.happy.mintableTotal()).to.equal(TOTAL_SUPPLY);
 
       expect(await this.happy.setMinter(this.admin.address))
         .to.emit(this.happy, "NewMinter");
@@ -236,12 +235,10 @@ describe("Happy.sol", function () {
 
       expect(await this.happy.balanceOf(this.admin.address)).to.equal("0");
       expect(await this.happy.burnedSupply()).to.equal(TOTAL_SUPPLY);
-      expect(await this.happy.mintableTotal()).to.equal(TOTAL_SUPPLY.mul("2"));
     });
 
     it("increases burned supply with burnFrom()", async function () {
       expect(await this.happy.burnedSupply()).to.equal("0");
-      expect(await this.happy.mintableTotal()).to.equal(TOTAL_SUPPLY);
 
       expect(await this.happy.setMinter(this.admin.address))
         .to.emit(this.happy, "NewMinter");
@@ -260,7 +257,6 @@ describe("Happy.sol", function () {
       expect(await this.happy.balanceOf(this.admin.address)).to.equal("0");
       expect(await this.happy.balanceOf(this.unauthorized.address)).to.equal("0");
       expect(await this.happy.burnedSupply()).to.equal(TOTAL_SUPPLY);
-      expect(await this.happy.mintableTotal()).to.equal(TOTAL_SUPPLY.mul("2"));
     });
 
   });

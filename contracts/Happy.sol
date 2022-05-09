@@ -43,7 +43,7 @@ contract Happy is ERC20("Happiness", "HAPPY", 18), Ownable {
         emit NewLogoURI(newLogoURI);
     }
 
-    function setExternalURI(string memory newWebsiteURI) external onlyOwner {
+    function setWebsiteURI(string memory newWebsiteURI) external onlyOwner {
         websiteURI = newWebsiteURI;
         emit NewWebsiteURI(newWebsiteURI);
     }

@@ -2,8 +2,13 @@
 // solhint-disable not-rely-on-time
 pragma solidity 0.8.13;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+interface IERC20 {
+    function transfer(address recipient, uint256 amount) external returns (bool);
+}
+
+interface IERC721 {
+    function transferFrom(address from, address to, uint256 tokenId) external;
+}
 
 interface IChef {
     function recipientRewardRate(address account) external view returns (uint256);
@@ -36,15 +41,10 @@ library SafeCast {
         require(x > 0);
         return uint256(x);
     }
-
-    function toUint128(uint256 x) internal pure returns (uint128) {
-        require(x < 1 << 128);
-        return uint128(x);
-    }
 }
 
 /// @author Shung for cryptofrens.xyz
-contract HappyPairStaking {
+contract FrenStaking {
     using SafeCast for uint256;
     using SafeCast for int256;
 
@@ -54,20 +54,21 @@ contract HappyPairStaking {
         uint40 lastUpdate;
         uint56 previousValues;
         uint56 entryTimes;
-        uint128 idealPosition;
-        uint128 rewardPerValue;
+        uint256 idealPosition;
+        uint256 rewardPerValue;
     }
 
     mapping(address => User) public users;
-    mapping(uint256 => address) private owners;
+    mapping(uint256 => address) public owners;
 
     uint16 public totalStaked;
     uint56 public sumOfEntryTimes;
     uint40 public initTime;
     uint40 public lastUpdate; // needed for partial emergency withdraw
 
-    uint128 private _rewardPerValue;
-    uint128 private _idealPosition;
+    uint256 private _rewardPerValue;
+    uint256 private _idealPosition;
+    uint256 private constant PRECISION = 2**48;
 
     IChef public immutable CHEF;
     IERC20 public immutable HAPPY;
@@ -79,13 +80,9 @@ contract HappyPairStaking {
     event Withdrawn(address indexed user, uint256 amount, uint256 reward);
     event Locked(address indexed user, address indexed to, uint256 reward);
 
-    error InsufficientBalance(uint256 currentBalance);
-    error InvalidInputAmount(uint256 inputAmount);
-    error RewardOverflow(uint256 rewardAdded);
+    error InvalidAmount(uint256 inputAmount);
     error InvalidToken(uint256 tokenId);
     error TransferFailed();
-    error LockerUnset();
-    error LowReserves();
     error NoReward();
 
     constructor(address fren, address chef) {
@@ -109,7 +106,7 @@ contract HappyPairStaking {
         uint256 amount = tokens.length;
         uint256 newTotalStaked = totalStaked + amount;
         if (amount == 0 || newTotalStaked > type(uint16).max) {
-            revert InvalidInputAmount(amount);
+            revert InvalidAmount(amount);
         }
 
         uint56 addedEntryTimes = uint56(block.timestamp * amount);
@@ -142,7 +139,7 @@ contract HappyPairStaking {
 
         uint256 amount = tokens.length;
         uint256 oldBalance = user.balance;
-        if (amount == 0 || amount > oldBalance) revert InvalidInputAmount(amount);
+        if (amount == 0 || amount > oldBalance) revert InvalidAmount(amount);
         uint256 remaining;
         unchecked {
             remaining = oldBalance - amount;
@@ -168,8 +165,7 @@ contract HappyPairStaking {
             owners[tokenId] = address(0);
             FREN.transferFrom(address(this), msg.sender, tokenId);
         }
-        if (reward != 0)
-            if (!HAPPY.transfer(msg.sender, reward)) revert TransferFailed();
+        if (reward != 0 && !HAPPY.transfer(msg.sender, reward)) revert TransferFailed();
         emit Withdrawn(msg.sender, amount, reward);
     }
 
@@ -196,22 +192,20 @@ contract HappyPairStaking {
         emit Harvested(msg.sender, reward);
     }
 
-    function lock() external {
+    function lock(uint256 amount) external {
         _updateRewardVariables();
         lastUpdate = uint40(block.timestamp);
 
         User storage user = users[msg.sender];
 
         address locker = CHEF.locker();
-        if (locker == address(0)) revert LockerUnset();
-
         uint256 reward = _earned();
-        if (reward == 0) revert NoReward();
-        user.stash -= reward.toInt88();
+        if (amount == 0 || amount > reward) revert InvalidAmount(amount);
+        user.stash -= amount.toInt88();
 
-        if (!HAPPY.transfer(locker, reward)) revert TransferFailed();
+        if (!HAPPY.transfer(locker, amount)) revert TransferFailed();
         ILocker(locker).lock(msg.sender); // skim
-        emit Locked(msg.sender, locker, reward);
+        emit Locked(msg.sender, locker, amount);
     }
 
     function emergencyExit(uint256[] calldata tokens) external {
@@ -219,7 +213,7 @@ contract HappyPairStaking {
 
         uint256 amount = tokens.length;
         uint256 oldBalance = user.balance;
-        if (amount == 0 || amount > oldBalance) revert InvalidInputAmount(amount);
+        if (amount == 0 || amount > oldBalance) revert InvalidAmount(amount);
         uint256 remaining;
         unchecked {
             remaining = oldBalance - amount;
@@ -264,9 +258,8 @@ contract HappyPairStaking {
         if (balance == 0) return 0;
         tmpRewardPerValue -= user.rewardPerValue;
         tmpIdealPosition -= user.idealPosition;
-        int256 newReward = (((tmpIdealPosition -
-            (tmpRewardPerValue * (user.lastUpdate - initTime))) * balance) +
-            (tmpRewardPerValue * user.previousValues)).toInt256();
+        int256 newReward = ((((tmpIdealPosition - (tmpRewardPerValue * (user.lastUpdate - initTime))) *
+            balance) + (tmpRewardPerValue * user.previousValues)) / PRECISION).toInt256();
         return (user.stash + newReward).toUint256();
     }
 
@@ -280,17 +273,17 @@ contract HappyPairStaking {
         if (balance == 0) return 0;
         uint256 rewardPerValue = _rewardPerValue - user.rewardPerValue;
         uint256 idealPosition = _idealPosition - user.idealPosition;
-        int256 newReward = (((idealPosition - (rewardPerValue * (user.lastUpdate - initTime))) *
-            balance) + (rewardPerValue * user.previousValues)).toInt256();
+        int256 newReward = ((((idealPosition - (rewardPerValue * (user.lastUpdate - initTime))) *
+            balance) + (rewardPerValue * user.previousValues)) / PRECISION).toInt256();
         return (user.stash + newReward).toUint256();
     }
 
-    function _rewardVariables(uint256 rewards) private view returns (uint128, uint128) {
+    function _rewardVariables(uint256 rewards) private view returns (uint256, uint256) {
         uint256 totalValue = block.timestamp * totalStaked - sumOfEntryTimes;
         if (totalValue == 0) return (_idealPosition, _rewardPerValue);
         return (
-            (_idealPosition + (rewards * (block.timestamp - initTime)) / totalValue).toUint128(),
-            (_rewardPerValue + rewards / totalValue).toUint128()
+            _idealPosition + ((rewards * (block.timestamp - initTime)) * PRECISION) / totalValue,
+            _rewardPerValue + (rewards * PRECISION) / totalValue
         );
     }
 }
