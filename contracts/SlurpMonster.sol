@@ -15,7 +15,7 @@ contract SlurpMonster is ERC721Holder {
     WrappedCryptoFrens public constant WFREN =
         WrappedCryptoFrens(0xB5010D5Eb31AA8776b52C7394B76D6d627501C73);
     FrenTreasury public constant TREASURY =
-        FrenTreasury(payable(0x00));
+        FrenTreasury(payable(0x5d29aDabe7a49cB27a2c8d2Db62814B88F25501c));
 
     uint256 public constant MINT_COST = 1.5 ether;
     uint256 public constant SWING_COST = 0.1 ether;

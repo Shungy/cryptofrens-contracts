@@ -2,11 +2,13 @@
 pragma solidity 0.8.15;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 
-contract FrenTreasury is AccessControlEnumerable {
+contract FrenTreasury is AccessControlEnumerable, ERC721Holder {
     using SafeERC20 for IERC20;
     using Address for address payable;
 
@@ -25,5 +27,9 @@ contract FrenTreasury is AccessControlEnumerable {
 
     function getERC20(IERC20 token, address to, uint256 amount) external onlyRole(TREASURY_ROLE) {
         token.safeTransfer(to, amount);
+    }
+
+    function getERC721(IERC721 token, address to, uint256 id) external onlyRole(TREASURY_ROLE) {
+        token.safeTransferFrom(address(this), to, id);
     }
 }
