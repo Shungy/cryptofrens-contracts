@@ -21,6 +21,13 @@ contract SlurpMonster is ERC721Holder {
     uint256 public constant SWING_COST = 0.1 ether;
     uint256 public constant BACKING_COST = 1.3 ether;
 
+    receive() external payable {}
+
+    function sendAllToTreasury() external {
+        WFREN.transfer(address(TREASURY), WFREN.balanceOf(address(this)));
+        payable(address(TREASURY)).sendValue(address(this).balance);
+    }
+
     function swing(uint256 frenId) external payable {
         require(msg.value == SWING_COST, "INVALID_AMOUNT_PAID");
 
@@ -35,36 +42,25 @@ contract SlurpMonster is ERC721Holder {
         FREN.mint{ value: MINT_COST }();
         uint256 newMintedFrenId = FREN.totalSupply();
         FREN.safeTransferFrom(address(this), msg.sender, newMintedFrenId);
-
-        sendRemainingToTreasury();
-    }
-
-    function sendRemainingToTreasury() public {
-        WFREN.transfer(address(TREASURY), WFREN.balanceOf(address(this)));
-        payable(address(TREASURY)).sendValue(address(this).balance);
     }
 
     function onERC721Received(
-        address operator,
+        address, // operator
         address from,
         uint256 tokenId,
         bytes memory // data
     ) public override returns (bytes4) {
         require(msg.sender == address(FREN), "INVALID_TOKEN");
-        if (from == address(0)) {
-            assert(operator == address(this));
-        } else {
-            uint256 selfBalance = address(this).balance;
-            if (selfBalance < BACKING_COST) { unchecked {
-                TREASURY.getAVAX(payable(address(this)), BACKING_COST - selfBalance);
-            } }
 
-            FREN.safeTransferFrom(address(this), address(WFREN), tokenId);
+        uint256 selfBalance = address(this).balance;
+        if (selfBalance < BACKING_COST) { unchecked {
+            TREASURY.getAVAX(payable(address(this)), BACKING_COST - selfBalance);
+        } }
 
-            payable(from).sendValue(BACKING_COST);
+        FREN.safeTransferFrom(address(this), address(WFREN), tokenId);
+        WFREN.transfer(address(TREASURY), 1 ether);
 
-            sendRemainingToTreasury();
-        }
+        payable(from).sendValue(BACKING_COST);
         return super.onERC721Received.selector;
     }
 }
