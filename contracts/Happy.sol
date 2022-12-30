@@ -1,65 +1,64 @@
 // SPDX-License-Identifier: GPLv3
-pragma solidity 0.8.13;
+pragma solidity 0.8.15;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@rari-capital/solmate/src/tokens/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Capped.sol";
 
-/// @author shung for https://cryptofrens.xyz/
-contract Happy is ERC20("Happiness", "HAPPY", 18), Ownable {
+contract Happiness is ERC20, ERC20Burnable, ERC20Capped, AccessControlEnumerable {
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    bytes32 public constant MINTER_ADMIN_ROLE = keccak256("MINTER_ADMIN_ROLE");
+    bytes32 public constant METADATA_SETTER_ROLE = keccak256("METADATA_SETTER_ROLE");
+    bytes32 public constant METADATA_ADMIN_ROLE = keccak256("METADATA_ADMIN_ROLE");
+    bytes32 public constant WHITELISTED_SPENDER_ROLE = keccak256("WHITELISTED_SPENDER_ROLE");
+    bytes32 public constant WHITELISTED_SPENDER_ADMIN_ROLE =
+        keccak256("WHITELISTED_SPENDER_ADMIN_ROLE");
+    string public tokenURI;
     uint256 public burnedSupply;
-    uint256 public constant cap = 69_666_420.13e18;
 
-    string public websiteURI = "https://cryptofrens.xyz/happy";
-    string public logoURI = "https://cryptofrens.xyz/happy/logo.png";
+    event SetTokenURI(string newTokenURI);
 
-    address public minter;
-
-    event NewMinter(address newMinter);
-    event NewLogoURI(string newLogoURI);
-    event NewWebsiteURI(string newWebsiteURI);
-
-    function burn(uint256 amount) external {
-        _burn(msg.sender, amount);
+    constructor() ERC20("Happiness", "HAPPY") ERC20Capped(69_666_420.13e18) {
+        // Roles specification:
+        // MINTER_ADMIN_ROLE manages MINTER_ROLE executes `mint()`.
+        // METADATA_ADMIN_ROLE manages METADATA_SETTER_ROLE executes `setTokenURI()`.
+        // WHITELISTED_SPENDER_ADMIN_ROLE manages WHITELISTED_SPENDER_ROLE bypasses token approval
+        // checks.
+        _grantRole(MINTER_ADMIN_ROLE, msg.sender); // Will be renounced or be behind timelock.
+        _grantRole(METADATA_ADMIN_ROLE, msg.sender);
+        _grantRole(WHITELISTED_SPENDER_ADMIN_ROLE, msg.sender); // Will be behind timelock.
+        _setRoleAdmin(MINTER_ROLE, MINTER_ADMIN_ROLE);
+        _setRoleAdmin(METADATA_SETTER_ROLE, METADATA_ADMIN_ROLE);
+        _setRoleAdmin(WHITELISTED_SPENDER_ROLE, WHITELISTED_SPENDER_ADMIN_ROLE);
     }
 
-    function burnFrom(address from, uint256 amount) external {
-        uint256 allowed = allowance[from][msg.sender];
-        if (allowed != type(uint256).max) allowance[from][msg.sender] = allowed - amount;
-        _burn(from, amount);
+    function setTokenURI(string memory newTokenURI) external onlyRole(METADATA_SETTER_ROLE) {
+        emit SetTokenURI(tokenURI = newTokenURI);
     }
 
-    function mint(address to, uint256 amount) external {
-        require(msg.sender == minter, "unauthorized");
+    function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) {
         _mint(to, amount);
     }
 
-    function setMinter(address newMinter) external onlyOwner {
-        minter = newMinter;
-        emit NewMinter(newMinter);
+    function remainingSupply() external view returns (uint256) {
+        return cap() + burnedSupply - totalSupply();
     }
 
-    function setLogoURI(string memory newLogoURI) external onlyOwner {
-        logoURI = newLogoURI;
-        emit NewLogoURI(newLogoURI);
+    function _mint(address account, uint256 amount) internal override(ERC20, ERC20Capped) {
+        ERC20Capped._mint(account, amount);
     }
 
-    function setWebsiteURI(string memory newWebsiteURI) external onlyOwner {
-        websiteURI = newWebsiteURI;
-        emit NewWebsiteURI(newWebsiteURI);
+    function _spendAllowance(
+        address owner,
+        address spender,
+        uint256 amount
+    ) internal override {
+        if (!(tx.origin == owner && hasRole(WHITELISTED_SPENDER_ROLE, spender)))
+            super._spendAllowance(owner, spender, amount);
     }
 
-    function _mint(address to, uint256 amount) internal override {
-        uint256 newSupply = totalSupply + amount;
-        require(newSupply <= cap, "cap exceeded");
-        totalSupply = newSupply;
-        unchecked {
-            balanceOf[to] += amount;
-        }
-        emit Transfer(address(0), to, amount);
-    }
-
-    function _burn(address from, uint256 amount) internal override {
-        burnedSupply += amount;
-        super._burn(from, amount);
+    function _beforeTokenTransfer(address, address to, uint256 amount) internal override {
+        if (to == address(0)) burnedSupply += amount;
     }
 }

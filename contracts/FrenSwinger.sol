@@ -16,7 +16,7 @@ contract FrenSwinger is ERC721Holder, AccessControlEnumerable, Pausable {
 
     bytes32 public constant EMERGENCY_OPERATOR_ROLE = keccak256("EMERGENCY_OPERATOR_ROLE");
 
-    uint256 public listingPrice = 1.69 ether;
+    uint256 public listingPrice = 1.6 ether;
     uint256 public refundAmount = 1.4 ether;
     uint256 public expiry = 365 days;
 
@@ -63,10 +63,7 @@ contract FrenSwinger is ERC721Holder, AccessControlEnumerable, Pausable {
             uint256 frenId = frenIds[i];
             try NFTKEY.delistToken(address(FRENS), frenId) {} catch {}
             FRENS.safeTransferFrom(address(this), msg.sender, frenId);
-
-            unchecked {
-                ++i;
-            }
+            unchecked { ++i; }
         }
     }
 

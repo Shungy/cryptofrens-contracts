@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPLv3
 // solhint-disable not-rely-on-time
-pragma solidity 0.8.13;
+pragma solidity 0.8.7;
 
 interface IERC20 {
     function transfer(address recipient, uint256 amount) external returns (bool);
@@ -93,7 +93,8 @@ contract FrenStaking {
     }
 
     function stake(uint256[] calldata tokens) external {
-        if (totalStaked != 0) {
+        uint256 tmpTotalStaked = totalStaked;
+        if (tmpTotalStaked != 0) {
             _updateRewardVariables();
         } else if (initTime == 0) {
             initTime = uint40(block.timestamp);
@@ -104,14 +105,14 @@ contract FrenStaking {
         user.stash = _earned().toInt88();
 
         uint256 amount = tokens.length;
-        uint256 newTotalStaked = totalStaked + amount;
-        if (amount == 0 || newTotalStaked > type(uint16).max) {
+        tmpTotalStaked += amount;
+        if (amount == 0 || tmpTotalStaked > type(uint16).max) {
             revert InvalidAmount(amount);
         }
 
         uint56 addedEntryTimes = uint56(block.timestamp * amount);
         sumOfEntryTimes += addedEntryTimes;
-        totalStaked = uint16(newTotalStaked);
+        totalStaked = uint16(tmpTotalStaked);
         lastUpdate = uint40(block.timestamp);
 
         uint256 oldBalance = user.balance;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPLv3
 // solhint-disable not-rely-on-time
-pragma solidity 0.8.13;
+pragma solidity 0.8.7;
 
 interface IERC20 {
     function approve(address spender, uint256 amount) external returns (bool);
@@ -217,8 +217,7 @@ contract HappyStaking {
         user.rewardPerValue = _rewardPerValue;
 
         if (!PAIR.transfer(msg.sender, amount)) revert TransferFailed();
-        if (reward != 0)
-            if (!HAPPY.transfer(msg.sender, reward)) revert TransferFailed();
+        if (reward != 0 && !HAPPY.transfer(msg.sender, reward)) revert TransferFailed();
         emit Withdrawn(msg.sender, amount, reward);
     }
 
@@ -259,14 +258,9 @@ contract HappyStaking {
         emit Locked(msg.sender, locker, amount);
     }
 
-    function compound(uint256 maxPairAmount) external {
+    function compound() external payable {
         _updateRewardVariables();
-        _compound(maxPairAmount, true);
-    }
-
-    function compoundAVAX() external payable {
-        _updateRewardVariables();
-        _compound(msg.value, false);
+        _compound();
     }
 
     function emergencyExit() external {
@@ -307,7 +301,7 @@ contract HappyStaking {
         return (user.stash + newReward).toUint256();
     }
 
-    function _compound(uint256 maxPairAmount, bool wrapped) private {
+    function _compound() private {
         User storage user = users[msg.sender];
 
         uint256 reward = _earned();
@@ -321,14 +315,9 @@ contract HappyStaking {
             ? (reward * reserve1) / reserve0
             : (reward * reserve0) / reserve1;
 
-        if (maxPairAmount < pairAmount) revert HighSlippage();
+        if (msg.value < pairAmount) revert HighSlippage();
 
-        if (wrapped) {
-            if (!WAVAX.transferFrom(msg.sender, address(this), pairAmount))
-                revert TransferFailed();
-        } else {
-            WAVAX.deposit{ value: pairAmount }();
-        }
+        WAVAX.deposit{ value: pairAmount }();
 
         (, , uint256 amount) = ROUTER.addLiquidity(
             address(HAPPY), // tokenA
@@ -360,8 +349,8 @@ contract HappyStaking {
         user.idealPosition = _idealPosition;
         user.rewardPerValue = _rewardPerValue;
 
-        if (!wrapped) payable(msg.sender).transfer(maxPairAmount - pairAmount); // refund
         emit Compounded(msg.sender, amount, reward);
+        payable(msg.sender).transfer(msg.value - pairAmount); // refund
     }
 
     function _updateRewardVariables() private {
