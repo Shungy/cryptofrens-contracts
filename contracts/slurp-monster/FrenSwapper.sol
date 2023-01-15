@@ -41,7 +41,9 @@ contract FrenSwapper is ERC721Holder {
             WFREN.unwrap(1, from);
         } else {
             uint256 wantedTokenId = abi.decode(data, (uint256));
-            WFREN.unwrap(new uint256[](wantedTokenId), from);
+            uint256[] memory tokenIds = new uint256[](1);
+            tokenIds[0] = wantedTokenId;
+            WFREN.unwrap(tokenIds, from);
         }
 
         return this.onERC721Received.selector;

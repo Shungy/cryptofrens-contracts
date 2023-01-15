@@ -1,7 +1,8 @@
-require("@nomiclabs/hardhat-waffle");
 require('solidity-coverage');
 require('hardhat-contract-sizer');
 require("hardhat-gas-reporter");
+require("@nomiclabs/hardhat-etherscan");
+require("@nomiclabs/hardhat-waffle");
 require('dotenv').config();
 
 // This is a sample Hardhat task. To learn how to create your own go to
@@ -30,18 +31,54 @@ module.exports = {
       accounts: [process.env.PRIVATE_KEY]
     },
     avalanche_mainnet: {
-      url: "https://node.snowapi.net/ext/bc/C/rpc",
+      url: "https://api.avax.network/ext/bc/C/rpc",
       accounts: [process.env.PRIVATE_KEY]
     },
   },
   solidity: {
     compilers: [
       {
+        version: "0.8.15",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200
+          }
+        }
+      },
+      {
         version: "0.8.13",
         settings: {
           optimizer: {
             enabled: true,
-            runs: 2000
+            runs: 200
+          }
+        }
+      },
+      {
+        version: "0.8.14",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200
+          }
+        }
+      },
+      {
+        version: "0.8.9",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 999999
+          }
+        }
+      },
+      {
+        version: "0.8.7",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200
           }
         }
       },
@@ -61,5 +98,10 @@ module.exports = {
   },
   gasReporter: {
     enabled: (process.env.REPORT_GAS) ? true : false
+  },
+  etherscan: {
+    apiKey: {
+      avalanche: process.env.SNOWTRACE_API_KEY
+    }
   }
 };

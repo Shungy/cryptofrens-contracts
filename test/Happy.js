@@ -15,7 +15,7 @@ const EXTERNAL_URI = "https://cryptofrens.xyz/happy";
 const EXAMPLE_URI = "https://example.com/"
 
 // Start test block
-describe.only("Happy.sol", function () {
+describe("Happy.sol", function () {
   before(async function () {
     // Get all signers
     this.signers = await ethers.getSigners();

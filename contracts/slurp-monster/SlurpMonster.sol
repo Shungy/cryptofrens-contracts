@@ -2,7 +2,7 @@
 pragma solidity 0.8.15;
 
 import { WrappedCryptoFrens } from "./WrappedCryptoFrens.sol";
-import { CryptoFrens } from "./CryptoFrens.sol";
+import { CryptoFrens } from "../CryptoFrens.sol";
 import { FrenTreasury } from "./FrenTreasury.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
@@ -38,6 +38,7 @@ contract SlurpMonster is ERC721Holder {
 
         FREN.transferFrom(msg.sender, address(this), frenId);
         FREN.safeTransferFrom(address(this), address(WFREN), frenId);
+        WFREN.transfer(address(TREASURY), 1 ether);
 
         FREN.mint{ value: MINT_COST }();
         uint256 newMintedFrenId = FREN.totalSupply();
@@ -45,22 +46,27 @@ contract SlurpMonster is ERC721Holder {
     }
 
     function onERC721Received(
-        address, // operator
+        address operator,
         address from,
         uint256 tokenId,
         bytes memory // data
     ) public override returns (bytes4) {
         require(msg.sender == address(FREN), "INVALID_TOKEN");
 
-        uint256 selfBalance = address(this).balance;
-        if (selfBalance < BACKING_COST) { unchecked {
-            TREASURY.getAVAX(payable(address(this)), BACKING_COST - selfBalance);
-        } }
+        if (operator == address(this)) {
+            assert(from == address(0));
+        } else {
+            uint256 selfBalance = address(this).balance;
+            if (selfBalance < BACKING_COST) { unchecked {
+                TREASURY.getAVAX(payable(address(this)), BACKING_COST - selfBalance);
+            } }
 
-        FREN.safeTransferFrom(address(this), address(WFREN), tokenId);
-        WFREN.transfer(address(TREASURY), 1 ether);
+            FREN.safeTransferFrom(address(this), address(WFREN), tokenId);
+            WFREN.transfer(address(TREASURY), 1 ether);
 
-        payable(from).sendValue(BACKING_COST);
+            payable(from).sendValue(BACKING_COST);
+        }
+
         return super.onERC721Received.selector;
     }
 }
